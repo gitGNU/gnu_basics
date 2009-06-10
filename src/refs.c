@@ -95,15 +95,11 @@ static void rotate(struct b6_tref *r, int dir, int opp)
  * AVL Tree Rebalancing
  * --------------------
  *
- * Nodes are written lower case, followed by their balance under
- * parentheses.
- * Trees are written upper case, followed by their height under
- * brackets.
- * Note that the height of the whole tree does not change in case SR2
- * only.
+ * Nodes are written lower case, followed by their balance under parentheses.
+ * Trees are written upper case, followed by their height under brackets.
+ * Note that the height of the whole tree does not change in case SR2 only.
  *
- * A] single rotations (here, right), that is, when balance of p is
- * not right:
+ * A] single rotations (here, right), that is, when balance of p is not right:
  *
  * SR1:     r(-2)              p(0)
  * ----     /   \             /   \
@@ -190,11 +186,11 @@ static int rebalance_avl(struct b6_tref *r)
  * AVL Tree Insertion
  * ------------------
  *
- * After the node has been inserted, the tree is traveled upwards to
- * adjust possible balances issues. The operation continues until a
- * subtree which height did not change is found. This occur when
- * subtree becomes even after the insertion or when it has to be
- * re-balanced as it will restore its previous height.
+ * After the node has been inserted, the tree is traveled upwards to adjust
+ * possible balances issues. The operation continues until a subtree which
+ * height did not change is found. This occur when subtree becomes even after
+ * the insertion or when it has to be re-balanced as it will restore its
+ * previous height.
  */
 static void fix_avl_insert(struct b6_tree *tree, struct b6_tref *ref)
 {
@@ -227,10 +223,10 @@ static void fix_avl_insert(struct b6_tree *tree, struct b6_tref *ref)
  * AVL Tree Removal
  * ----------------
  *
- * The tree is traveled upwards to adjust balances until the height of
- * a subtree does not change. This occur either when the subtree was
- * even before the removal or when it had to be re-balanced and that
- * operation did not change its height.
+ * The tree is traveled upwards to adjust balances until the height of a
+ * subtree does not change. This occur either when the subtree was even before
+ * the removal or when it had to be re-balanced and that operation did not
+ * change its height.
  */
 static void fix_avl_remove(struct b6_tree *tree, struct b6_tref *ref, int dir,
                            struct b6_tref *old)
@@ -263,8 +259,8 @@ static void fix_avl_remove(struct b6_tree *tree, struct b6_tref *ref, int dir,
  * AVL Tree Verification
  * ---------------------
  *
- * The tree is traveled in depth first. For each node we check that
- * left height and right height do not differ of more than 1.
+ * The tree is traveled in depth first. For each node we check that left
+ * height and right height do not differ of more than 1.
  */
 static int verify_avl(const struct b6_tree *tree, struct b6_tref *ref,
                       struct b6_tref **subtree)
@@ -307,29 +303,26 @@ static int verify_avl(const struct b6_tree *tree, struct b6_tref *ref,
  * Red Black Tree Insertion
  * ------------------------
  *
- * This function fixes colors after a node has been inserted in a
- * red-black tree. The recently inserted node is painted red. Then,
- * color are fixed backwards so as not break red-black tree rules. The
- * loop begins at step #2.
+ * This function fixes colors after a node has been inserted in a red-black
+ * tree. The recently inserted node is painted red. Then, color are fixed
+ * backwards so as not break red-black tree rules. The loop begins at step #2.
  *
  * 1] If the node is the root of the tree, it is colored black and the
- * operation is over as it adds a black node to every path of the
- * tree.
+ * operation is over as it adds a black node to every path of the tree.
  *
- * 2] The operation is over as well if the parent of the node is black
- * as rules remain satisfied.
+ * 2] The operation is over as well if the parent of the node is black as
+ * rules remain satisfied.
  *
- * 3] The node as a red parent, which induces that it also has a
- * grandparent as the root of tree is black. If the node has a red
- * uncle, then the parent and the uncle are turned black while the
- * grandparent is turned red. This does not violate the 4th rule. The
- * operation has to go on with the grandparent as it could still break
- * the other rules.
+ * 3] The node as a red parent, which induces that it also has a grandparent
+ * as the root of tree is black. If the node has a red uncle, then the parent
+ * and the uncle are turned black while the grandparent is turned red. This
+ * does not violate the 4th rule. The operation has to go on with the
+ * grandparent as it could still break the other rules.
  *
- * 4] Now, either the node has no uncle or its uncle is painted black,
- * like a Rolling Stone. If the parent is a left (resp. right) child
- * and the node a right (resp. left), then a left (resp. right)
- * rotation will invert their roles, as follows:
+ * 4] Now, either the node has no uncle or its uncle is painted black, like a
+ * Rolling Stone. If the parent is a left (resp. right) child and the node a
+ * right (resp. left), then a left (resp. right) rotation will invert their
+ * roles, as follows:
  *
  *        _g[b]__                         __g[b]_
  *       /       \                       /       \
@@ -339,16 +332,16 @@ static int verify_avl(const struct b6_tree *tree, struct b6_tref *ref,
  *       /  \                      /  \
  *    B[b]  C[b]                A[b]  B[b]
  *
- * The rotation is safe as both the node and its parent are red and
- * properties are not violated in any sub-tree.
+ * The rotation is safe as both the node and its parent are red and properties
+ * are not violated in any sub-tree.
  *
- * 5] The former parent has to be dealt with, however, as it breaks
- * the 3rd rule. Now, we know that parent and node are either both
- * left (resp. right) children. Thus, a right (resp. left) rotation
- * rooted at the child of the grand parent (e.g. the parent or the
- * former node according to the previous configuration) will make the
- * former grandparent a child of the parent.  Then, switching colors
- * of both nodes will restore the rules and the operation is complete.
+ * 5] The former parent has to be dealt with, however, as it breaks the 3rd
+ * rule. Now, we know that parent and node are either both left (resp. right)
+ * children. Thus, a right (resp. left) rotation rooted at the child of the
+ * grand parent (e.g. the parent or the former node according to the previous
+ * configuration) will make the former grandparent a child of the parent.
+ * Then, switching colors of both nodes will restore the rules and the
+ * operation is complete.
  *
  *           __g[b]_                      _p[r->b]_
  *          /       \                    /         \
@@ -420,46 +413,44 @@ static void fix_rb_insert(struct b6_tree *tree, struct b6_tref *ref)
  * Red Black Tree Removal
  * ----------------------
  *
- * This function fixes colors after a node has been removed from a
- * red-black tree.
+ * This function fixes colors after a node has been removed from a red-black
+ * tree.
  *
- * If the removed node was red, then we are done as no black path has
- * changed at all.
+ * If the removed node was red, then we are done as no black path has changed
+ * at all.
  *
- * Now, we know the removed node was black. It was replaced by one of
- * its children. If this child is red, then, we repaint it black to
- * restore black height.
+ * Now, we know the removed node was black. It was replaced by one of its
+ * children. If this child is red, then, we repaint it black to restore black
+ * height.
  *
- * Otherwise, the child is black. If its sibling is red, it is
- * possible to rotate the sub-tree so that it becomes the parent of
- * the parent. Colors have to be exchanged between both of them to
- * avoid breaking rules once more. This insures the sibling is black
- * for the remainder of the discussion. Here, we based the algorithm
- * that it can be proven that a sibling always exists in that case.
+ * Otherwise, the child is black. If its sibling is red, it is possible to
+ * rotate the sub-tree so that it becomes the parent of the parent. Colors
+ * have to be exchanged between both of them to avoid breaking rules once
+ * more. This insures the sibling is black for the remainder of the
+ * discussion. Here, we based the algorithm that it can be proven that a
+ * sibling always exists in that case.
  *
- * If both sibling's children are black (or if the sibling is a leaf),
- * then repainting the sibling red will make all paths across it
- * contain the same number of black node as those passing through the
- * node. Now, the parent itself has to be examined as it still breaks
- * the rules since all paths through it have one fewer black node. If
- * it is red, then we repaint it black to add the missing black node
- * in the path and we are done.
+ * If both sibling's children are black (or if the sibling is a leaf), then
+ * repainting the sibling red will make all paths across it contain the same
+ * number of black node as those passing through the node. Now, the parent
+ * itself has to be examined as it still breaks the rules since all paths
+ * through it have one fewer black node. If it is red, then we repaint it
+ * black to add the missing black node in the path and we are done.
  *
- * If sibling's children have different colors, we insure that the
- * sibling has a red child in the same direction as the node. If not,
- * a rotation in the opposite direction rooted at sibling will do
- * it. Colors are exchanged between the former and the new sibling. As
- * a result, number of black nodes are kept unchanged.
+ * If sibling's children have different colors, we insure that the sibling has
+ * a red child in the same direction as the node. If not, a rotation in the
+ * opposite direction rooted at sibling will do it. Colors are exchanged
+ * between the former and the new sibling. As a result, number of black nodes
+ * are kept unchanged.
  *
- * Now, a rotation rooted at the parent in the direction of the child
- * will make the sibling the parent of the former parent. The new
- * parent gets the former parent's color. Painting its children black
- * will restore red/black properties. Paths passing through the
- * removed node have one additional black node. Other paths either
- * pass through its sibling or its uncle. The first ones are ok since
- * parent and sibling colors have not changed. Thoses passing through
- * the new uncle, have got one new black node as one node was changed
- * from red to black, balancing the node they lost during the
+ * Now, a rotation rooted at the parent in the direction of the child will
+ * make the sibling the parent of the former parent. The new parent gets the
+ * former parent's color. Painting its children black will restore red/black
+ * properties. Paths passing through the removed node have one additional
+ * black node. Other paths either pass through its sibling or its uncle. The
+ * first ones are ok since parent and sibling colors have not changed. Thoses
+ * passing through the new uncle, have got one new black node as one node was
+ * changed from red to black, balancing the node they lost during the
  * rotation.
  */
 static void fix_rb_remove(struct b6_tree *tree, struct b6_tref *top, int dir,
@@ -729,9 +720,9 @@ struct b6_tref *b6_tree_del(struct b6_tree *tree, struct b6_tref *ref)
 		struct b6_tref *aux, *tmp;
 		int direction, opposite, balance;
 
-		direction = -(ref->balance >> 1);
-		b6_assert(direction == (ref->balance == to_weight(B6_PREV)) ?
-			  B6_NEXT: B6_PREV);
+		direction = (ref->balance + 1) >> 1;
+		b6_assert(direction == (ref->balance == to_weight(B6_NEXT)) ?
+			  B6_PREV : B6_NEXT);
 		opposite = to_opposite(direction);
 
 		aux = ref->ref[opposite];
@@ -782,11 +773,10 @@ struct b6_tref *b6_tree_del(struct b6_tree *tree, struct b6_tref *ref)
  * AVL/Red-Black Tree Traveling
  * ----------------------------
  *
- * If the node has a child in the traveling direction, the node to
- * find It is the latest node in the opposite direction of the subtree
- * of the child. Otherwise, the next node is the first elder when
- * walking the tree backwards to the root, which child is in the
- * opposite direction.
+ * If the node has a child in the traveling direction, the node to find It is
+ * the latest node in the opposite direction of the subtree of the
+ * child. Otherwise, the next node is the first elder when walking the tree
+ * backwards to the root, which child is in the opposite direction.
  */
 struct b6_tref *b6_tree_walk(const struct b6_tree *tree,
                              const struct b6_tref *ref, int dir)
@@ -892,8 +882,7 @@ void b6_splay_initialize(struct b6_splay *splay, b6_ref_compare_t comp)
  * Splay Tree Insertion
  * --------------------
  *
- * Splay the tree and add the node as new root unless it is already
- * present.
+ * Splay the tree and add the node as new root unless it is already present.
  */
 struct b6_dref *b6_splay_add(struct b6_splay *splay, struct b6_dref *ref)
 {
@@ -922,15 +911,14 @@ bail_out:
  * Splay Tree Removal
  * ------------------
  *
- * First splay the tree to move the node to the root. The operation is
- * aborted if the root is not like the ref passed as parameter.
+ * First splay the tree to move the node to the root. The operation is aborted
+ * if the root is not like the ref passed as parameter.
  *
- * Due to implementation based on head and tail sentinels, the root of
- * the tree always has a child in the previous direction. If this
- * child has no child in the next direction, we simply replace the
- * root with it. Otherwise, we walk the subtree to find the latest
- * node is the next direction, which actually is the predecessor of
- * the root, and use it as the new root.
+ * Due to implementation based on head and tail sentinels, the root of the
+ * tree always has a child in the previous direction. If this child has no
+ * child in the next direction, we simply replace the root with it. Otherwise,
+ * we walk the subtree to find the latest node is the next direction, which
+ * actually is the predecessor of the root, and use it as the new root.
  */
 struct b6_dref *b6_splay_del(struct b6_splay *splay, struct b6_dref *ref)
 {
@@ -966,8 +954,8 @@ struct b6_dref *b6_splay_del(struct b6_splay *splay, struct b6_dref *ref)
  * Splay Tree Search
  * -----------------
  *
- * Searching a splay tree is first splaying the tree and return the
- * root if it matches.
+ * Searching a splay tree is first splaying the tree and return the root if it
+ * matches.
  */
 struct b6_dref *b6_splay_find(const struct b6_splay *splay,
                               b6_ref_examine_t examine, void *argument)
@@ -982,11 +970,11 @@ struct b6_dref *b6_splay_find(const struct b6_splay *splay,
  * Splay Tree Travel
  * -----------------
  *
- * Traveling a splay tree is the same operation as traveling a AVL or
- * R/B tree except that this implementation of splay tree does not
- * have a reference to the parent node. Thus, insteand of walking the
- * tree backwards to the root, it is walked from the root to the node,
- * saving the latest parents in each direction.
+ * Traveling a splay tree is the same operation as traveling a AVL or R/B tree
+ * except that this implementation of splay tree does not have a reference to
+ * the parent node. Thus, insteand of walking the tree backwards to the root,
+ * it is walked from the root to the node, saving the latest parents in each
+ * direction.
  */
 struct b6_dref *b6_splay_walk(const struct b6_splay *splay,
                               const struct b6_dref *ref, int dir)

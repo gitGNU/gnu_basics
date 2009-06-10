@@ -34,6 +34,7 @@ struct b6_deque {
 	struct b6_sref tail;
 	struct b6_sref *last;
 };
+
 #define B6_DEQUE_DEFINE(deque)						\
 	struct b6_deque deque = { { &deque.tail }, { NULL }, &deque.head }
 
@@ -430,7 +431,7 @@ static inline struct b6_tref *b6_tree_last(const struct b6_tree *tree)
 static inline int b6_tree_check(const struct b6_tree *tree,
                                 struct b6_tref **subtree)
 {
-	return tree->ops->chk(tree, tree->root.ref[0], subtree);
+	return tree->ops->chk(tree, tree->root.ref[B6_PREV], subtree);
 }
 
 #endif /* REFS_H_ */
