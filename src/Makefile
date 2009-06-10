@@ -9,6 +9,3 @@ export L=libb6.so.1
 
 all clean:
 	@$(MAKE) -f ../build/Makefile $@
-
-mrproper: clean
-	$(RM) *~

@@ -7,6 +7,3 @@ export EXTRA_LDFLAGS=-L../src -lb6
 all clean:
 	@$(MAKE) X="tree" SRC="node.c assert.c tree.c" -f ../build/Makefile $@
 	@$(MAKE) X="splay" SRC="node.c assert.c splay.c" -f ../build/Makefile $@
-
-mrproper: clean
-	$(RM) *~
