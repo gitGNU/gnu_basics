@@ -117,22 +117,35 @@ static inline struct b6_sref *b6_deque_del_after(struct b6_deque *deque,
 }
 
 static inline struct b6_sref *b6_deque_find_before(const struct b6_deque *deque,
-                                                   const struct b6_sref *prev,
+                                                   const struct b6_sref *sref,
                                                    b6_ref_examine_t func,
                                                    void *arg, int direction)
 {
-	struct b6_sref *curr, *next;
+	const struct b6_sref *prev, *curr, *temp;
 
-	curr = b6_deque_walk(deque, prev, direction);
-	next = b6_deque_walk(deque, curr, direction);
+	switch (direction) {
+	case B6_PREV:
+		temp = prev = &deque->head;
+		while ((curr = b6_deque_walk(deque, prev, B6_NEXT)) != sref) {
+			if (func(curr, arg))
+				temp = prev;
+			prev = curr;
+		}
+		return (struct b6_sref*) temp;
 
-	while (next != NULL && func(curr, arg)) {
-		prev = curr;
-		curr = next;
-		next = b6_deque_walk(deque, curr, direction);
+	case B6_NEXT:
+		prev = sref;
+		while ((curr = b6_deque_walk(deque, prev, B6_NEXT)) != NULL) {
+			if (func(curr, arg))
+				break;
+			prev = curr;
+		}
+		return (struct b6_sref*) prev;
+
+	default:
+		b6_precond(direction == B6_PREV || direction == B6_NEXT);
+		return NULL;
 	}
-
-	return (struct b6_sref *)prev;
 }
 
 static inline struct b6_sref *b6_deque_add(struct b6_deque *deque,
