@@ -96,7 +96,7 @@ static int do_tree_test(const struct b6_tree_ops *ops)
 		}
 	}
 
-	while (deque.head.next != &deque.tail) {
+	while (b6_deque_walk(&deque, &deque.head, B6_NEXT) != &deque.tail) {
 		struct node *node;
 		struct b6_sref *sref;
 		struct b6_tref *tref;

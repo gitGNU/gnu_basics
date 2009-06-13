@@ -15,7 +15,7 @@ typedef int (*b6_ref_compare_t)(const void *ref1, const void *ref2);
 typedef int (*b6_ref_examine_t)(const void *ref, void *arg);
 
 struct b6_sref {
-	struct b6_sref *next;
+	struct b6_sref *ref;
 };
 
 struct b6_dref {
@@ -42,8 +42,8 @@ static inline void b6_deque_initialize(struct b6_deque *deque)
 {
 	b6_precond(deque != NULL);
 
-	deque->head.next = &deque->tail;
-	deque->tail.next = NULL;
+	deque->head.ref = &deque->tail;
+	deque->tail.ref = NULL;
 	deque->last = &deque->head;
 }
 
@@ -51,7 +51,7 @@ static inline int b6_deque_empty(const struct b6_deque *deque)
 {
 	b6_precond(deque != NULL);
 
-	return deque->head.next == &deque->tail;
+	return deque->head.ref == &deque->tail;
 }
 
 static inline struct b6_sref *b6_deque_walk(const struct b6_deque *deque,
@@ -65,7 +65,7 @@ static inline struct b6_sref *b6_deque_walk(const struct b6_deque *deque,
 	b6_precond(direction == B6_PREV || direction == B6_NEXT);
 
 	if (direction == B6_NEXT)
-		return curr->next;
+		return curr->ref;
 
 	if (curr == &deque->tail)
 		return deque->last;
@@ -73,7 +73,7 @@ static inline struct b6_sref *b6_deque_walk(const struct b6_deque *deque,
 	if (curr == &deque->head)
 		return NULL;
 
-	for (prev = &deque->head; prev->next != curr; prev = prev->next);
+	for (prev = &deque->head; prev->ref != curr; prev = prev->ref);
 
 	return (struct b6_sref *)prev;
 }
@@ -85,15 +85,15 @@ static inline struct b6_sref *b6_deque_add_after(struct b6_deque *deque,
 	struct b6_sref *next;
 
 	b6_precond(prev != NULL);
-	next = prev->next;
+	next = prev->ref;
 
 	b6_precond(deque != NULL);
 	if (b6_unlikely(prev == deque->last))
 		deque->last = sref;
 
 	b6_precond(sref != NULL);
-	sref->next = next;
-	prev->next = sref;
+	sref->ref = next;
+	prev->ref = sref;
 
 	return sref;
 }
@@ -104,14 +104,14 @@ static inline struct b6_sref *b6_deque_del_after(struct b6_deque *deque,
 	struct b6_sref *curr;
 
 	b6_precond(prev != NULL);
-	curr = prev->next;
+	curr = prev->ref;
 
 	b6_precond(deque != NULL);
 	if (b6_unlikely(curr == deque->last))
 		deque->last = prev;
 
 	b6_precond(curr != NULL);
-	prev->next = curr->next;
+	prev->ref = curr->ref;
 
 	return curr;
 }
@@ -192,7 +192,7 @@ static inline struct b6_sref *b6_deque_del_last(struct b6_deque *deque)
 
 static inline struct b6_sref *b6_deque_first(const struct b6_deque *deque)
 {
-	return deque->head.next;
+	return deque->head.ref;
 }
 
 static inline struct b6_sref *b6_deque_last(const struct b6_deque *deque)
