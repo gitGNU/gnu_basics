@@ -6,16 +6,76 @@
 #ifndef REFS_H_
 #define REFS_H_
 
+/**
+ * @file refs.h
+ *
+ * @brief This file provides the interface for handling with containers
+ *
+ * Containers are objects that allows building collections of homogeneous
+ * data, so-called elements. They are of two main types. Sequential containers
+ * stores elements in a raw. Associative containers stores elements in an
+ * ordered manner.
+ *
+ * At glance, sequential containers are fast for adding and removing elements
+ * but behave poorly when being searched. Associative containers require
+ * elements to be comparable. They are slower for insertion and removal but
+ * provide efficient search algorithms.
+ *
+ * Containers use references to keep track of elements. A reference is a data
+ * structure that holds one or several pointer to other references.
+ *
+ * Elements contains a reference as a member. It is possible to dereference a
+ * reference to get the pointer of the element it is bound to using
+ * b6_container_of. Here is an example with a simply-linked reference:
+ *
+ * @code
+ * struct element {
+ * 	...
+ * 	struct b6_sref sref;
+ * 	...
+ * };
+ *
+ * struct element *foo(struct b6_sref *ref)
+ * {
+ *  	return b6_container_of(ref, struct element, sref);
+ * }
+ * @endcode
+ *
+ * Note that not every reference is linked to an element: every container has
+ * head and tail references that are placed before and after any reference
+ * within the container respectively. It is illegal to dereference them.
+ *
+ * @see b6_sref, b6_dref, b6_tref
+ * @see b6_ref_compare_t, b6_ref_examine_t
+ */
+
 #include "utils.h"
 #include "assert.h"
 
 enum { B6_NEXT, B6_PREV };
 
 typedef int (*b6_ref_compare_t)(const void *ref1, const void *ref2);
+
+/**
+ * @brief Type definition for functions to be called back when searching
+ * containers
+ *
+ * It is insured that the function is never called with the head or tail
+ * reference of the queue. Thus, it is safe to dereference the reference given
+ * as parameter.
+ *
+ * @param ref reference to check
+ * @param arg opaque data specified along with this function pointer
+ * @return true or false according to whether the reference matches or not
+ */
 typedef int (*b6_ref_examine_t)(const void *ref, void *arg);
 
+/**
+ * @brief Single reference
+ * @see b6_deque
+ */
 struct b6_sref {
-	struct b6_sref *ref;
+	struct b6_sref *ref; /**< link to another reference */
 };
 
 struct b6_dref {
@@ -29,15 +89,38 @@ struct b6_tref {
 	signed char balance;
 };
 
+/**
+ * @brief Doubly-ended queue
+ *
+ * A doubly-ended queue or deque is a sequence of elements where each element
+ * has a reference to the next one. Doubly-ended queues have a small footprint
+ * in memory. Insertions and deletions after a reference within the deque are
+ * very fast as they execute in a constant time. Adding an element as last
+ * element is that fast.
+ *
+ * The counterpart is that operations that need to get a reference to a
+ * previous element are inefficient. They have a linear complexity as the
+ * whole deque as possibly to be traveled to find it. For instance, removing
+ * the last element is that slow.
+ */
 struct b6_deque {
-	struct b6_sref head;
-	struct b6_sref tail;
-	struct b6_sref *last;
+	struct b6_sref head; /**< reference before any element in the queue */
+	struct b6_sref tail; /**< reference after any element in the queue */
+	struct b6_sref *last; /**< reference before b6_deque::tail */
 };
 
+/**
+ * @brief Initialize a deque statically
+ * @param deque name of the variable
+ */
 #define B6_DEQUE_DEFINE(deque)						\
 	struct b6_deque deque = { { &deque.tail }, { NULL }, &deque.head }
 
+/**
+ * @brief Initialize or clear a doubly-ended queue
+ * @complexity O(1)
+ * @param deque pointer to the doubly-ended queue
+ */
 static inline void b6_deque_initialize(struct b6_deque *deque)
 {
 	b6_precond(deque != NULL);
@@ -47,6 +130,13 @@ static inline void b6_deque_initialize(struct b6_deque *deque)
 	deque->last = &deque->head;
 }
 
+/**
+ * @brief Test if a doubly-ended queue contains elements
+ * @complexity O(1)
+ * @param deque pointer to the doubly-ended queue
+ * @retval true if the doubly-ended queue does not contains any elements
+ * @retval false if the doubly-ended queue contains one element or more
+ */
 static inline int b6_deque_empty(const struct b6_deque *deque)
 {
 	b6_precond(deque != NULL);
@@ -54,6 +144,16 @@ static inline int b6_deque_empty(const struct b6_deque *deque)
 	return deque->head.ref == &deque->tail;
 }
 
+/**
+ * @brief Travel a doubly-ended queue reference per reference
+ * @complexity O(n) for B6_PREV, O(1) for B6_NEXT
+ * @param deque pointer to the doubly-ended queue
+ * @param curr reference to walk from
+ * @param direction B6_PREV or B6_NEXT to get the previous or next reference
+ * respectively
+ * @returns NULL when going out of range or the next or previous reference in
+ * the sequence
+ */
 static inline struct b6_sref *b6_deque_walk(const struct b6_deque *deque,
                                             const struct b6_sref *curr,
                                             int direction)
@@ -78,6 +178,18 @@ static inline struct b6_sref *b6_deque_walk(const struct b6_deque *deque,
 	return (struct b6_sref *)prev;
 }
 
+/**
+ * @brief Insert a new element after a reference in the doubly-ended queue
+ *
+ * It is illegal to attempt to insert an element after the tail reference of
+ * the doubly-ended queue.
+ *
+ * @complexity O(1)
+ * @param deque pointer to the doubly-ended queue
+ * @param prev reference in the doubly-ended queue
+ * @param sref reference of the element to insert
+ * @return sref
+ */
 static inline struct b6_sref *b6_deque_add_after(struct b6_deque *deque,
                                                  struct b6_sref *prev,
                                                  struct b6_sref *sref)
@@ -98,6 +210,18 @@ static inline struct b6_sref *b6_deque_add_after(struct b6_deque *deque,
 	return sref;
 }
 
+/**
+ * @brief Remove an element placed after a reference within the doubly-ended
+ * queue
+ *
+ * It is illegal to attempt to remove the tail reference of the doubly-ended
+ * queue or after.
+ *
+ * @complexity O(1)
+ * @param deque pointer to the doubly-ended queue
+ * @param prev pointer to the reference in the queue
+ * @return pointer to the reference of the element removed
+ */
 static inline struct b6_sref *b6_deque_del_after(struct b6_deque *deque,
                                                  struct b6_sref *prev)
 {
@@ -113,9 +237,27 @@ static inline struct b6_sref *b6_deque_del_after(struct b6_deque *deque,
 	b6_precond(curr != NULL);
 	prev->ref = curr->ref;
 
+	b6_postcond (curr != &deque->tail);
+
 	return curr;
 }
 
+/**
+ * @brief Search a doubly-ended queue for an element and return its predecessor
+ * @complexity O(n)
+ * @param deque pointer to the doubly-ended queue
+ * @param sref reference in the queue to start the search from
+ * @param func pointer to the function to call when watching elements
+ * @param arg opaque data to pass to func
+ * @param direction either B6_NEXT or B6_PREV
+ * @retval pointer to the found element
+ * @retval pointer to the head or tail of doubly-ended queue when searching
+ * backwards or forwards repectively failed.
+ * @note It is safe to specify head or tail as sref parameter as sref is
+ * neither dereferenced nor examined through func during the search. As a
+ * consequence, sref is to be examined before calling b6_deque_find_before if
+ * needed.
+ */
 static inline struct b6_sref *b6_deque_find_before(const struct b6_deque *deque,
                                                    const struct b6_sref *sref,
                                                    b6_ref_examine_t func,
@@ -148,27 +290,57 @@ static inline struct b6_sref *b6_deque_find_before(const struct b6_deque *deque,
 	}
 }
 
+/**
+ * @brief Insert a new element before a reference in the doubly-ended queue
+ * @complexity O(n)
+ * @param deque pointer to the doubly-ended queue
+ * @param next reference in the doubly-ended queue
+ * @param sref reference of the element to insert
+ * @return sref
+ */
 static inline struct b6_sref *b6_deque_add(struct b6_deque *deque,
                                            struct b6_sref *next,
-                                           struct b6_sref *node)
+                                           struct b6_sref *sref)
 {
 	struct b6_sref *prev;
 
 	prev = b6_deque_walk(deque, next, B6_PREV);
 
-	return b6_deque_add_after(deque, prev, node);
+	return b6_deque_add_after(deque, prev, sref);
 }
 
+/**
+ * @brief Remove an element within the doubly-ended queue
+ *
+ * It is illegal to attempt to remove the head or the tail reference of the
+ * doubly-ended queue.
+ *
+ * @complexity O(1)
+ * @param deque pointer to the doubly-ended queue
+ * @param sref pointer to the reference in the queue
+ * @return pointer to the reference of the element removed
+ */
 static inline struct b6_sref *b6_deque_del(struct b6_deque *deque,
-                                           struct b6_sref *node)
+                                           struct b6_sref *sref)
 {
 	struct b6_sref *prev;
 
-	prev = b6_deque_walk(deque, node, B6_PREV);
+	prev = b6_deque_walk(deque, sref, B6_PREV);
 
 	return b6_deque_del_after(deque, prev);
 }
 
+/**
+ * @brief Search a doubly-ended queue for an element.
+ * @complexity O(n)
+ * @param deque pointer to the doubly-ended queue
+ * @param prev pointer to the element in the queue
+ * @param func pointer to the function to call when watching elements
+ * @param arg opaque data to pass to func
+ * @param direction either B6_NEXT or B6_PREV
+ * @return pointer to the found element or a pointer to the head or tail of
+ * doubly-ended queue when searching backwards or forwards repectively.
+ */
 static inline struct b6_sref *b6_deque_find(const struct b6_deque *deque,
                                             const struct b6_sref *prev,
                                             b6_ref_examine_t func, void *arg,
@@ -181,33 +353,75 @@ static inline struct b6_sref *b6_deque_find(const struct b6_deque *deque,
 	return b6_deque_walk(deque, curr, B6_NEXT);
 }
 
+/**
+ * @brief Insert an element as first element of the doubly-ended queue
+ * @complexity O(1)
+ * @param deque pointer to the doubly-ended queue
+ * @param sref pointer to the reference of the element to insert
+ * @return sref
+ */
 static inline struct b6_sref *b6_deque_add_first(struct b6_deque *deque,
                                                  struct b6_sref *sref)
 {
 	return b6_deque_add_after(deque, &deque->head, sref);
 }
 
+/**
+ * @brief Insert an element as last element of the doubly-ended queue
+ * @complexity O(1)
+ * @param deque pointer to the doubly-ended queue
+ * @param sref pointer to the reference of the element to insert
+ * @return sref
+ */
 static inline struct b6_sref *b6_deque_add_last(struct b6_deque *deque,
                                                 struct b6_sref *sref)
 {
 	return b6_deque_add_after(deque, deque->last, sref);
 }
 
+/**
+ * @brief Remove the first element of a doubly-ended queue
+ * @complexity O(1)
+ * @pre The doubly-ended queue is not empty
+ * @param deque pointer to the doubly-ended queue
+ * @return pointer to the reference of the element removed
+ */
 static inline struct b6_sref *b6_deque_del_first(struct b6_deque *deque)
 {
 	return b6_deque_del_after(deque, &deque->head);
 }
 
+/**
+ * @brief Remove the last element of a doubly-ended queue
+ * @complexity O(n)
+ * @pre The doubly-ended queue is not empty
+ * @param deque pointer to the doubly-ended queue
+ * @return pointer to the reference of the element removed
+ */
 static inline struct b6_sref *b6_deque_del_last(struct b6_deque *deque)
 {
 	return b6_deque_del(deque, deque->last);
 }
 
+/**
+ * @brief Return the reference of the first element of a doubly-ended queue
+ * @complexity O(1)
+ * @param deque pointer to the doubly-ended queue
+ * @return pointer to the reference of first element or tail if the
+ * doubly-ended queue is empty
+ */
 static inline struct b6_sref *b6_deque_first(const struct b6_deque *deque)
 {
 	return deque->head.ref;
 }
 
+/**
+ * @brief Return the reference of the last element of a doubly-ended queue
+ * @complexity O(1)
+ * @param deque pointer to the doubly-ended queue
+ * @return pointer to the reference of first element or head if the
+ * doubly-ended queue is empty
+ */
 static inline struct b6_sref *b6_deque_last(const struct b6_deque *deque)
 {
 	return deque->last;
