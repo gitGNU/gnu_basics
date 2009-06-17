@@ -66,7 +66,11 @@ typedef int (*b6_ref_compare_t)(const void *ref1, const void *ref2);
  *
  * @param ref reference to check
  * @param arg opaque data specified along with this function pointer
- * @return true or false according to whether the reference matches or not
+ * @return for sequential containers, boolean value according to whether the
+ * reference matches or not
+ * @return for associative containers, -1 if the element is smaller than
+ * expected, 1 if the element is greater than expected and 0 if the element
+ * equals what is expected.
  */
 typedef int (*b6_ref_examine_t)(const void *ref, void *arg);
 
