@@ -911,24 +911,18 @@ bail_out:
  * Splay Tree Removal
  * ------------------
  *
- * First splay the tree to move the node to the root. The operation is aborted
- * if the root is not like the ref passed as parameter.
- *
  * Due to implementation based on head and tail sentinels, the root of the
  * tree always has a child in the previous direction. If this child has no
  * child in the next direction, we simply replace the root with it. Otherwise,
  * we walk the subtree to find the latest node is the next direction, which
  * actually is the predecessor of the root, and use it as the new root.
  */
-struct b6_dref *b6_splay_del(struct b6_splay *splay, struct b6_dref *ref)
+struct b6_dref *b6_splay_del(struct b6_splay *splay)
 {
-	struct b6_dref *top, *cur;
+	struct b6_dref *top, *cur, *ref;
 
 	b6_precond(splay != NULL);
-	b6_precond(ref != NULL);
-
-	if (0 != do_splay(splay, (void*)splay->comp, ref))
-		return NULL;
+	b6_precond(!b6_splay_empty(splay));
 
 	ref = splay->root;
 	top = splay->root->ref[B6_PREV];
@@ -960,6 +954,9 @@ struct b6_dref *b6_splay_del(struct b6_splay *splay, struct b6_dref *ref)
 struct b6_dref *b6_splay_find(const struct b6_splay *splay,
                               b6_ref_examine_t examine, void *argument)
 {
+	if (examine == NULL)
+		examine = (b6_ref_examine_t) splay->comp;
+
 	if (do_splay((struct b6_splay *)splay, examine, argument) != 0)
 		return NULL;
 

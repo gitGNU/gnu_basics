@@ -719,7 +719,7 @@ static inline int b6_splay_empty(const struct b6_splay *splay)
 }
 
 struct b6_dref *b6_splay_add(struct b6_splay *splay, struct b6_dref *ref);
-struct b6_dref *b6_splay_del(struct b6_splay *splay, struct b6_dref *ref);
+struct b6_dref *b6_splay_del(struct b6_splay *splay);
 struct b6_dref *b6_splay_find(const struct b6_splay *splay,
                               b6_ref_examine_t examine, void *argument);
 struct b6_dref *b6_splay_walk(const struct b6_splay *splay,
