@@ -78,8 +78,12 @@ struct b6_sref {
 	struct b6_sref *ref; /**< pointer to the next reference */
 };
 
+/**
+ * @ingroup list
+ * @brief Double reference
+ */
 struct b6_dref {
-	struct b6_dref *ref[2];
+	struct b6_dref *ref[2]; /**< pointers to other references */
 };
 
 struct b6_tref {
@@ -449,13 +453,43 @@ static inline struct b6_sref *b6_deque_last(const struct b6_deque *deque)
 	return deque->last;
 }
 
+/**
+ * @defgroup list Doubly-linked list
+ *
+ * Doubly-linked list is a deque where each element is linked to its successor
+ * and its predecessor in the sequence. As a result, there are no "after"
+ * operations anymore as inserting or removing an element before a reference
+ * offer the same performance.
+ *
+ * Fast operations on deque are faster than their equivalent on lists, even if
+ * they have the same overall complexity. Moreover, lists have a slightly
+ * bigger memeory footprint.
+ */
+
+/**
+ * @brief Doubly-linked list
+ * @ingroup list
+ * @see b6_dref
+ */
 struct b6_list {
-	struct b6_dref head, tail;
+	struct b6_dref head; /**< reference before any element in the list */
+	struct b6_dref tail; /**< reference after any element in the list */
 };
 
+/**
+ * @brief Initialize a list statically
+ * @ingroup list
+ * @param list name of the variable
+ */
 #define B6_LIST_DEFINE(list)						\
 	struct b6_list list = {{&list.tail, NULL}, {NULL, &list.head}}
 
+/**
+ * @brief Initialize or clear a doubly-linked list
+ * @ingroup list
+ * @complexity O(1)
+ * @param list pointer to the doubly-linked list
+ */
 static inline void b6_list_initialize(struct b6_list *list)
 {
 	list->head.ref[B6_NEXT] = &list->tail;
@@ -464,6 +498,14 @@ static inline void b6_list_initialize(struct b6_list *list)
 	list->tail.ref[B6_PREV] = &list->head;
 }
 
+/**
+ * @brief Test if a doubly-linked list contains elements
+ * @ingroup list
+ * @complexity O(1)
+ * @param list pointer to the doubly-linked list
+ * @return 0 if the list contains one element or more and another value if it
+ * does not contains any elements
+ */
 static inline int b6_list_empty(const struct b6_list *list)
 {
 	b6_precond(list != NULL);
@@ -471,9 +513,18 @@ static inline int b6_list_empty(const struct b6_list *list)
 	return list->head.ref[B6_NEXT] == &list->tail;
 }
 
+/**
+ * @brief Insert a new element before a reference in the doubly-linked list
+ * @ingroup list
+ * @complexity O(1)
+ * @param list pointer to the doubly-linked list
+ * @param next reference in the list
+ * @param dref reference of the element to insert
+ * @return dref
+ */
 static inline struct b6_dref *b6_list_add(struct b6_list *list,
                                           struct b6_dref *next,
-                                          struct b6_dref *node)
+                                          struct b6_dref *dref)
 {
 	struct b6_dref *prev;
 
@@ -483,43 +534,78 @@ static inline struct b6_dref *b6_list_add(struct b6_list *list,
 	prev = next->ref[B6_PREV];
 
 	b6_precond(prev != NULL);
-	prev->ref[B6_NEXT] = node;
-	next->ref[B6_PREV] = node;
+	prev->ref[B6_NEXT] = dref;
+	next->ref[B6_PREV] = dref;
 
-	b6_precond(node != NULL);
-	node->ref[B6_PREV] = prev;
-	node->ref[B6_NEXT] = next;
+	b6_precond(dref != NULL);
+	dref->ref[B6_PREV] = prev;
+	dref->ref[B6_NEXT] = next;
 
-	return node;
+	return dref;
 }
 
+/**
+ * @brief Remove an element within the doubly-linked list
+ * @ingroup list
+ *
+ * It is illegal to attempt to remove the head or the tail reference of the
+ * doubly-linked list.
+ *
+ * @complexity O(1)
+ * @param list pointer to the doubly-linked list
+ * @param dref pointer to the reference in the list
+ * @return dref
+ */
 static inline struct b6_dref *b6_list_del(struct b6_list *list,
-                                          struct b6_dref *node)
+                                          struct b6_dref *dref)
 {
 	struct b6_dref *prev;
 
 	b6_precond(list != NULL);
 
-	b6_precond(node != NULL);
-	prev = node->ref[B6_PREV];
+	b6_precond(dref != NULL);
+	prev = dref->ref[B6_PREV];
 
 	b6_precond(prev != NULL);
-	prev->ref[B6_NEXT] = node->ref[B6_NEXT];
+	prev->ref[B6_NEXT] = dref->ref[B6_NEXT];
 
-	return node;
+	return dref;
 }
 
+/**
+ * @brief Travel a doubly-linked list reference per reference
+ * @ingroup list
+ * @complexity O(1)
+ * @param list pointer to the doubly-linked list
+ * @param dref reference to walk from
+ * @param direction B6_PREV or B6_NEXT to get the previous or next reference
+ * respectively
+ * @return NULL when going out of range or the next or previous reference in
+ * the sequence
+ */
 static inline struct b6_dref *b6_list_walk(const struct b6_list *list,
-                                           const struct b6_dref *curr,
+                                           const struct b6_dref *dref,
                                            int direction)
 {
-	b6_precond((unsigned)direction < b6_card_of(curr->ref));
+	b6_precond((unsigned)direction < b6_card_of(dref->ref));
 	b6_precond(list != NULL);
-	b6_precond(curr != NULL);
+	b6_precond(dref != NULL);
 
-	return (struct b6_dref *)curr->ref[direction];
+	return (struct b6_dref *)dref->ref[direction];
 }
 
+/**
+ * @brief Search a doubly-linked list for an element
+ * @ingroup list
+ * @complexity O(n)
+ * @param list pointer to the doubly-linked list
+ * @param prev pointer to the element in the list
+ * @param func pointer to the function to call when watching elements
+ * @param arg opaque data to pass to func
+ * @param direction either B6_NEXT or B6_PREV
+ * @return pointer to the found element or a pointer to the head or tail of
+ * doubly-ended queue when searching backwards or forwards repectively.
+ */
 static inline struct b6_dref *b6_list_find(const struct b6_list *list,
                                            const struct b6_dref *prev,
                                            b6_ref_examine_t func, void *arg,
@@ -538,33 +624,80 @@ static inline struct b6_dref *b6_list_find(const struct b6_list *list,
 	return (struct b6_dref *)prev;
 }
 
+/**
+ * @brief Insert an element as first element of the doubly-linked list
+ * @ingroup list
+ * @complexity O(1)
+ * @param list pointer to the doubly-linked list
+ * @param dref pointer to the reference of the element to insert
+ * @return dref
+ */
 static inline struct b6_dref *b6_list_add_first(struct b6_list *list,
                                                 struct b6_dref *dref)
 {
 	return b6_list_add(list, list->head.ref[B6_NEXT], dref);
 }
 
+/**
+ * @brief Insert an element as last element of the doubly-linked list
+ * @ingroup list
+ * @complexity O(1)
+ * @param list pointer to the doubly-linked list
+ * @param dref pointer to the reference of the element to insert
+ * @return dref
+ */
 static inline struct b6_dref *b6_list_add_last(struct b6_list *list,
                                                struct b6_dref *dref)
 {
 	return b6_list_add(list, list->tail.ref[B6_PREV], dref);
 }
 
+/**
+ * @brief Remove the first element of a doubly-linked list
+ * @complexity O(1)
+ * @pre The doubly-linked list is not empty
+ * @param list pointer to the list
+ * @return pointer to the reference of the element removed
+ */
 static inline struct b6_dref *b6_list_del_first(struct b6_list *list)
 {
 	return b6_list_del(list, list->head.ref[B6_NEXT]);
 }
 
+/**
+ * @brief Remove the last element of a doubly-linked list
+ * @ingroup list
+ * @complexity O(1)
+ * @pre The doubly-linked list is not empty
+ * @param list pointer to the doubly-linked list
+ * @return pointer to the reference of the element removed
+ */
 static inline struct b6_dref *b6_list_del_last(struct b6_list *list)
 {
 	return b6_list_del(list, list->tail.ref[B6_PREV]);
 }
 
+/**
+ * @brief Return the reference of the first element of a doubly-linked list
+ * @ingroup list
+ * @complexity O(1)
+ * @param list pointer to the doubly-linked list
+ * @return pointer to the reference of the first element or tail if the
+ * list is empty
+ */
 static inline struct b6_dref *b6_list_first(const struct b6_list *list)
 {
 	return list->head.ref[B6_NEXT];
 }
 
+/**
+ * @brief Return the reference of the last element of a doubly-linked list
+ * @ingroup list
+ * @complexity O(1)
+ * @param list pointer to the doubly-linked list
+ * @return pointer to the reference of the last element or head if the
+ * list is empty
+ */
 static inline struct b6_dref *b6_list_last(const struct b6_list *list)
 {
 	return list->tail.ref[B6_PREV];
