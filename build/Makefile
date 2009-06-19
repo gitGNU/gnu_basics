@@ -47,3 +47,5 @@ $(A): $(OBJ)
 
 %.o: %.c
 	$(call do, "COMP  $@", $(CC) $(CFLAGS) -c "$<" -o "$@")
+
+-include $(DEP)
