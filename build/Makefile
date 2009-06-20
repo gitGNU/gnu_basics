@@ -6,7 +6,7 @@ CFLAGS=$(CPPFLAGS) -Wall $(EXTRA_CFLAGS)
 LDFLAGS=$(EXTRA_LDFLAGS)
 
 CFLAGS_SO=-fPIC $(CFLAGS)
-LDFLAGS_SO=-shared -Wl$(comma)-soname$(comma)"$@" $(LDFLAGS)
+LDFLAGS_SO=-shared -Wl,-soname,"$@" $(LDFLAGS)
 
 ifndef VERBOSE
 do = @(echo " $(1)"; $(2))
