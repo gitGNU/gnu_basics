@@ -218,6 +218,7 @@ static inline struct b6_sref *b6_deque_add_after(struct b6_deque *deque,
 	b6_precond(prev != NULL);
 	next = prev->ref;
 
+	b6_precond(next != NULL);
 	b6_precond(deque != NULL);
 	if (b6_unlikely(prev == deque->last))
 		deque->last = sref;
@@ -254,10 +255,9 @@ static inline struct b6_sref *b6_deque_del_after(struct b6_deque *deque,
 	if (b6_unlikely(curr == deque->last))
 		deque->last = prev;
 
+	b6_precond(curr != &deque->tail);
 	b6_precond(curr != NULL);
 	prev->ref = curr->ref;
-
-	b6_postcond (curr != &deque->tail);
 
 	return curr;
 }
@@ -486,7 +486,7 @@ struct b6_list {
  * @param list name of the variable
  */
 #define B6_LIST_DEFINE(list)						\
-	struct b6_list list = {{&list.tail, NULL}, {NULL, &list.head}}
+	struct b6_list list = {{{&list.tail, NULL}}, {{NULL, &list.head}}}
 
 /**
  * @brief Initialize or clear a doubly-linked list
@@ -538,6 +538,7 @@ static inline struct b6_dref *b6_list_add(struct b6_list *list,
 	prev = next->ref[B6_PREV];
 
 	b6_precond(prev != NULL);
+	b6_precond(next != &list->head);
 	prev->ref[B6_NEXT] = dref;
 	next->ref[B6_PREV] = dref;
 
@@ -563,15 +564,21 @@ static inline struct b6_dref *b6_list_add(struct b6_list *list,
 static inline struct b6_dref *b6_list_del(struct b6_list *list,
                                           struct b6_dref *dref)
 {
-	struct b6_dref *prev;
+	struct b6_dref *prev, *next;
 
 	b6_precond(list != NULL);
 
 	b6_precond(dref != NULL);
 	prev = dref->ref[B6_PREV];
+	next = dref->ref[B6_NEXT];
 
 	b6_precond(prev != NULL);
-	prev->ref[B6_NEXT] = dref->ref[B6_NEXT];
+	b6_precond(next != NULL);
+	b6_precond(dref != &list->head);
+	b6_precond(dref != &list->tail);
+
+	prev->ref[B6_NEXT] = next;
+	next->ref[B6_PREV] = prev;
 
 	return dref;
 }
@@ -653,7 +660,7 @@ static inline struct b6_dref *b6_list_add_first(struct b6_list *list,
 static inline struct b6_dref *b6_list_add_last(struct b6_list *list,
                                                struct b6_dref *dref)
 {
-	return b6_list_add(list, list->tail.ref[B6_PREV], dref);
+	return b6_list_add(list, &list->tail, dref);
 }
 
 /**
