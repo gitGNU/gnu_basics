@@ -55,10 +55,8 @@ struct b6_pool {
 	unsigned chunk_size; /**< Size in bytes of a chunk. */
 	unsigned size; /**< Size in bytes of an object. */
 
-	/** Chunk within objects are allocated. */
-	struct b6_chunk *curr;
-	/** Cached free chunk for fast allocation. */
-	struct b6_chunk *free;
+	struct b6_chunk *curr; /**< Chunk within objects are allocated. */
+	struct b6_chunk *free; /**< Cached free chunk for fast allocation. */
 
 	struct b6_deque queue; /**< Queue of free objects. */
 	struct b6_list list; /**< List of chunks. */
