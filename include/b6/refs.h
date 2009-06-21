@@ -326,55 +326,6 @@ static inline struct b6_sref *b6_deque_del_after(struct b6_deque *deque,
 
 /**
  * @ingroup deque
- * @brief Search a doubly-ended queue for an element and return its predecessor
- * @complexity O(n)
- * @param deque pointer to the doubly-ended queue
- * @param sref reference in the queue to start the search from
- * @param func pointer to the function to call when watching elements
- * @param arg opaque data to pass to func
- * @param direction either B6_NEXT or B6_PREV
- * @retval pointer to the found element
- * @retval pointer to the head or tail of doubly-ended queue when searching
- * backwards or forwards repectively failed.
- * @note It is safe to specify head or tail as sref parameter as sref is
- * neither dereferenced nor examined through func during the search. As a
- * consequence, sref is to be examined before calling b6_deque_find_before if
- * needed.
- */
-static inline struct b6_sref *b6_deque_find_before(const struct b6_deque *deque,
-                                                   const struct b6_sref *sref,
-                                                   b6_ref_examine_t func,
-                                                   void *arg, int direction)
-{
-	const struct b6_sref *prev, *curr, *temp;
-
-	switch (direction) {
-	case B6_PREV:
-		temp = prev = &deque->head;
-		while ((curr = b6_deque_walk(deque, prev, B6_NEXT)) != sref) {
-			if (func(curr, arg))
-				temp = prev;
-			prev = curr;
-		}
-		return (struct b6_sref*) temp;
-
-	case B6_NEXT:
-		prev = sref;
-		while ((curr = b6_deque_walk(deque, prev, B6_NEXT)) != NULL) {
-			if (func(curr, arg))
-				break;
-			prev = curr;
-		}
-		return (struct b6_sref*) prev;
-
-	default:
-		b6_precond(direction == B6_PREV || direction == B6_NEXT);
-		return NULL;
-	}
-}
-
-/**
- * @ingroup deque
  * @brief Insert a new element before a reference in the doubly-ended queue
  * @complexity O(n)
  * @param deque pointer to the doubly-ended queue
@@ -413,30 +364,6 @@ static inline struct b6_sref *b6_deque_del(struct b6_deque *deque,
 	prev = b6_deque_walk(deque, sref, B6_PREV);
 
 	return b6_deque_del_after(deque, prev);
-}
-
-/**
- * @ingroup deque
- * @brief Search a doubly-ended queue for an element
- * @complexity O(n)
- * @param deque pointer to the doubly-ended queue
- * @param prev pointer to the element in the queue
- * @param func pointer to the function to call when watching elements
- * @param arg opaque data to pass to func
- * @param direction either B6_NEXT or B6_PREV
- * @return pointer to the found element or a pointer to the head or tail of
- * doubly-ended queue when searching backwards or forwards repectively.
- */
-static inline struct b6_sref *b6_deque_find(const struct b6_deque *deque,
-                                            const struct b6_sref *prev,
-                                            b6_ref_examine_t func, void *arg,
-                                            int direction)
-{
-	const struct b6_sref *curr;
-
-	curr = b6_deque_find_before(deque, prev, func, arg, direction);
-
-	return b6_deque_walk(deque, curr, B6_NEXT);
 }
 
 /**
@@ -704,36 +631,6 @@ static inline struct b6_dref *b6_list_del(struct b6_list *list,
 }
 
 /**
- * @brief Search a doubly-linked list for an element
- * @ingroup list
- * @complexity O(n)
- * @param list pointer to the doubly-linked list
- * @param prev pointer to the element in the list
- * @param func pointer to the function to call when watching elements
- * @param arg opaque data to pass to func
- * @param direction either B6_NEXT or B6_PREV
- * @return pointer to the found element or a pointer to the head or tail of
- * doubly-linked list when searching backwards or forwards repectively.
- */
-static inline struct b6_dref *b6_list_find(const struct b6_list *list,
-                                           const struct b6_dref *prev,
-                                           b6_ref_examine_t func, void *arg,
-                                           int direction)
-{
-	struct b6_dref *next;
-
-	b6_precond((unsigned)direction < b6_card_of(prev->ref));
-
-	next = b6_list_walk(list, prev, direction);
-	do {
-		prev = next;
-		next = b6_list_walk(list, prev, direction);
-	} while (next != NULL && func(prev, arg));
-
-	return (struct b6_dref *)prev;
-}
-
-/**
  * @brief Insert an element as first element of the doubly-linked list
  * @ingroup list
  * @complexity O(1)
@@ -797,7 +694,7 @@ static inline struct b6_dref *b6_list_del_last(struct b6_list *list)
  *
  * The drawback is that in-order traversal is slower with splay trees than
  * with AVL or red/black trees as moving from one reference to the next one
- * sometimes require to find its parent, starting from the root.
+ * sometimes require finding its parent, starting from the root.
  */
 
 /**
@@ -957,8 +854,8 @@ struct b6_dref *b6_splay_del(struct b6_splay *splay);
  * @return pointer to the element found that has become the root of the splay
  * tree or NULL if no element was found.
  */
-struct b6_dref *b6_splay_find(const struct b6_splay *splay,
-                              b6_ref_examine_t examine, void *argument);
+struct b6_dref *b6_splay_search(const struct b6_splay *splay,
+				b6_ref_examine_t examine, void *argument);
 
 struct b6_tree {
 	const struct b6_tree_ops *ops;
@@ -1022,9 +919,9 @@ static inline int b6_tree_empty(const struct b6_tree *tree)
 	       b6_tree_head(tree) == b6_tree_tail(tree)->ref[B6_PREV];
 }
 
-struct b6_tref *b6_tree_find(const struct b6_tree *tree,
-                             struct b6_tref **top, int *dir,
-                             b6_ref_examine_t examine, void *argument);
+struct b6_tref *b6_tree_search(const struct b6_tree *tree,
+			       struct b6_tref **top, int *dir,
+			       b6_ref_examine_t examine, void *argument);
 
 struct b6_tref *b6_tree_insert(struct b6_tree *tree, struct b6_tref *top,
                                int dir, struct b6_tref *ref);
@@ -1035,7 +932,7 @@ static inline struct b6_tref *b6_tree_add(struct b6_tree *tree,
 	struct b6_tref *top, *tmp;
 	int dir;
 
-	tmp = b6_tree_find(tree, &top, &dir, (void*)tree->comp, ref);
+	tmp = b6_tree_search(tree, &top, &dir, (void*)tree->comp, ref);
 	if (tmp != NULL)
 		return tmp;
 
@@ -1051,7 +948,7 @@ static inline struct b6_tref *b6_tree_remove(struct b6_tree *tree,
 	struct b6_tref *top, *ref;
 	int dir;
 
-	ref = b6_tree_find(tree, &top, &dir, examine, argument);
+	ref = b6_tree_search(tree, &top, &dir, examine, argument);
 	if (ref != NULL)
 		b6_tree_del(tree, ref);
 

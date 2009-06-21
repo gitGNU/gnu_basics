@@ -627,8 +627,8 @@ void b6_tree_initialize(struct b6_tree *tree, b6_ref_compare_t comp,
 	tree->ops = ops;
 }
 
-struct b6_tref *b6_tree_find(const struct b6_tree *tree, struct b6_tref **top,
-                             int *dir, b6_ref_examine_t cmp, void *arg)
+struct b6_tref *b6_tree_search(const struct b6_tree *tree, struct b6_tref **top,
+			       int *dir, b6_ref_examine_t cmp, void *arg)
 {
 	b6_precond(tree != NULL);
 	b6_precond(top != NULL);
@@ -951,8 +951,8 @@ struct b6_dref *b6_splay_del(struct b6_splay *splay)
  * Searching a splay tree is first splaying the tree and return the root if it
  * matches.
  */
-struct b6_dref *b6_splay_find(const struct b6_splay *splay,
-                              b6_ref_examine_t examine, void *argument)
+struct b6_dref *b6_splay_search(const struct b6_splay *splay,
+				b6_ref_examine_t examine, void *argument)
 {
 	if (examine == NULL)
 		examine = (b6_ref_examine_t) splay->comp;

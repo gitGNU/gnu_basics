@@ -289,50 +289,6 @@ static int walk()
 	return 1;
 }
 
-static int cmp(const void *ref, void *arg)
-{
-	b6_precond(arg != NULL);
-	b6_precond(ref != NULL);
-
-	return ref == arg;
-}
-
-static int find()
-{
-	B6_LIST_DEFINE(list);
-	struct b6_dref dref[3];
-	jmp_buf env, *bak;
-	int i;
-
-	if (b6_list_head(&list) != b6_list_find(&list, b6_list_tail(&list),
-						cmp, NULL, B6_PREV))
-		return 0;
-
-	if (b6_list_tail(&list) != b6_list_find(&list, b6_list_head(&list),
-						cmp, NULL, B6_NEXT))
-		return 0;
-
-	bak = test_handler;
-	test_handler = &env;
-	if (!setjmp(env)) {
-		b6_list_find(&list, b6_list_tail(&list), NULL, NULL, B6_NEXT);
-
-		return 0;
-	}
-	if (!setjmp(env)) {
-		b6_list_find(&list, b6_list_head(&list), NULL, NULL, B6_PREV);
-
-		return 0;
-	}
-	test_handler = bak;
-
-	for (i = 0; i < b6_card_of(dref); i += 1)
-		if (&dref[i] != b6_list_add_last(&list, &dref[i]))
-			return 0;
-
-	return 1;
-}
-
 /*
  * generate with:
  egrep "^static int.*()" list.c | sed -e 's/(/,/g' -e 's/static int /\ttest(/g' -e 's/$/;/g'
@@ -360,7 +316,6 @@ int main(int argc, const char *argv[])
 	test_exec(del,);
 	test_exec(walk_on_bounds,);
 	test_exec(walk,);
-	test_exec(find,);
 
 	test_exit();
 

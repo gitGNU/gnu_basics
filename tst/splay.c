@@ -32,7 +32,7 @@ int main(int argc, const char *argv[])
 		b6_splay_add(&splay, &node->dref);
 	}
 
-	b6_splay_find(&splay, NULL, &nodes[8].dref);
+	b6_splay_search(&splay, NULL, &nodes[8].dref);
 	b6_splay_del(&splay);
 
 	ref = b6_splay_walk(&splay, &splay.head, B6_NEXT);

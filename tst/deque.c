@@ -395,16 +395,6 @@ static int del_last()
 	return 1;
 }
 
-static int find_todo()
-{
-	return 0;
-}
-
-static int find_before_todo()
-{
-	return 0;
-}
-
 /*
  * generate with:
  egrep "^static int.*()" deque.c | sed -e 's/(/,/g' -e 's/static int /\ttest(/g' -e 's/$/;/g'
@@ -440,8 +430,6 @@ int main(int argc, const char *argv[])
 	test_exec(walk_on_bounds,);
 	test_exec(walk,);
 	test_exec(del_last,);
-	test_exec(find_todo,);
-	test_exec(find_before_todo,);
 
 	test_exit();
 

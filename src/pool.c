@@ -76,7 +76,7 @@ static struct b6_chunk *find_chunk(struct b6_pool *pool, void *ptr)
 	struct b6_tref *ref, *top;
 	int dir;
 
-	ref = b6_tree_find(&pool->tree, &top, &dir, examine_chunk, ptr);
+	ref = b6_tree_search(&pool->tree, &top, &dir, examine_chunk, ptr);
 	chunk = b6_container_of(ref, struct b6_chunk, tref);
 
 	return chunk;
