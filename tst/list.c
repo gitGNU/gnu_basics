@@ -26,14 +26,14 @@ static int last_is_head_when_empty()
 {
 	B6_LIST_DEFINE(list);
 
-	return b6_list_last(&list) == &list.head;
+	return b6_list_last(&list) == b6_list_head(&list);
 }
 
 static int first_is_tail_when_empty()
 {
 	B6_LIST_DEFINE(list);
 
-	return b6_list_first(&list) == &list.tail;
+	return b6_list_first(&list) == b6_list_tail(&list);
 }
 
 static int add_before_head()
@@ -46,7 +46,7 @@ static int add_before_head()
 	retval = setjmp(env);
 	if (!retval) {
 		test_handler = &env;
-		b6_list_add(&list, &list.head, &dref);
+		b6_list_add(&list, b6_list_head(&list), &dref);
 	}
 
 	return retval;
@@ -61,7 +61,7 @@ static int add_null()
 	retval = setjmp(env);
 	if (!retval) {
 		test_handler = &env;
-		b6_list_add(&list, &list.tail, NULL);
+		b6_list_add(&list, b6_list_tail(&list), NULL);
 	}
 
 	return retval;
@@ -75,7 +75,7 @@ static int add()
 	struct b6_dref *iter;
 	int i;
 
-	for (i = 0, iter = &list.tail; i < b6_card_of(dref); i += 1) {
+	for (i = 0, iter = b6_list_tail(&list); i < b6_card_of(dref); i += 1) {
 		iter = b6_list_add(&list, iter, &dref[i]);
 
 		if (iter != &dref[i])
@@ -145,7 +145,7 @@ static int del_head()
 	retval = setjmp(env);
 	if (!retval) {
 		test_handler = &env;
-		b6_list_del(&list, &list.head);
+		b6_list_del(&list, b6_list_head(&list));
 	}
 
 	return retval;
@@ -175,7 +175,7 @@ static int del_tail()
 	retval = setjmp(env);
 	if (!retval) {
 		test_handler = &env;
-		b6_list_del(&list, &list.tail);
+		b6_list_del(&list, b6_list_tail(&list));
 	}
 
 	return retval;
@@ -229,7 +229,7 @@ static int del()
 			return 0;
 	}
 
-	if (&list.head != b6_list_last(&list))
+	if (b6_list_head(&list) != b6_list_last(&list))
 		return 0;
 
 	if (!b6_list_empty(&list))
@@ -242,16 +242,18 @@ static int walk_on_bounds()
 {
 	B6_LIST_DEFINE(list);
 
-	if (b6_list_walk(&list, &list.head, B6_NEXT) != &list.tail)
+	if (b6_list_walk(&list, b6_list_head(&list), B6_NEXT) !=
+	    b6_list_tail(&list))
 		return 0;
 
-	if (b6_list_walk(&list, &list.head, B6_PREV) != NULL)
+	if (b6_list_walk(&list, b6_list_head(&list), B6_PREV) != NULL)
 		return 0;
 
-	if (b6_list_walk(&list, &list.tail, B6_NEXT) != NULL)
+	if (b6_list_walk(&list, b6_list_tail(&list), B6_NEXT) != NULL)
 		return 0;
 
-	if (b6_list_walk(&list, &list.tail, B6_PREV) != &list.head)
+	if (b6_list_head(&list) != b6_list_walk(&list, b6_list_tail(&list),
+						B6_PREV))
 		return 0;
 
 	return 1;
@@ -268,7 +270,7 @@ static int walk()
 		if (&dref[i] != b6_list_add_last(&list, &dref[i]))
 			return 0;
 
-	for (i = 0, iter = b6_list_first(&list); iter != &list.tail;
+	for (i = 0, iter = b6_list_first(&list); iter != b6_list_tail(&list);
 	     iter = b6_list_walk(&list, iter, B6_NEXT), i += 1)
 		if (iter != &dref[i])
 			return 0;
@@ -276,7 +278,7 @@ static int walk()
 	if (i != b6_card_of(dref))
 		return 0;
 
-	for (i = 0, iter = b6_list_last(&list); iter != &list.head;
+	for (i = 0, iter = b6_list_last(&list); iter != b6_list_head(&list);
 	     iter = b6_list_walk(&list, iter, B6_PREV), i += 1)
 		if (iter != &dref[b6_card_of(dref) - 1 - i])
 			return 0;
@@ -302,21 +304,23 @@ static int find()
 	jmp_buf env, *bak;
 	int i;
 
-	if (&list.head != b6_list_find(&list, &list.tail, cmp, NULL, B6_PREV))
+	if (b6_list_head(&list) != b6_list_find(&list, b6_list_tail(&list),
+						cmp, NULL, B6_PREV))
 		return 0;
 
-	if (&list.tail != b6_list_find(&list, &list.head, cmp, NULL, B6_NEXT))
+	if (b6_list_tail(&list) != b6_list_find(&list, b6_list_head(&list),
+						cmp, NULL, B6_NEXT))
 		return 0;
 
 	bak = test_handler;
 	test_handler = &env;
 	if (!setjmp(env)) {
-		b6_list_find(&list, &list.tail, NULL, NULL, B6_NEXT);
+		b6_list_find(&list, b6_list_tail(&list), NULL, NULL, B6_NEXT);
 
 		return 0;
 	}
 	if (!setjmp(env)) {
-		b6_list_find(&list, &list.head, NULL, NULL, B6_PREV);
+		b6_list_find(&list, b6_list_head(&list), NULL, NULL, B6_PREV);
 
 		return 0;
 	}

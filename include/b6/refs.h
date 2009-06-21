@@ -148,17 +148,38 @@ static inline void b6_deque_initialize(struct b6_deque *deque)
 
 /**
  * @ingroup deque
- * @brief Test if a doubly-ended queue contains elements
+ * @brief Return the reference of the head of a doubly-ended queue
+ *
+ * The tail reference is such that there is no next reference in the
+ * container. It cannot be dereferenced as it is associated with no element.
+ *
  * @complexity O(1)
  * @param deque pointer to the doubly-ended queue
- * @return 0 if the deque contains one element or more and another value if it
- * does not contains any elements
+ * @return pointer to the reference of the head of the doubly-ended queue
  */
-static inline int b6_deque_empty(const struct b6_deque *deque)
+static inline struct b6_sref *b6_deque_head(const struct b6_deque *deque)
 {
 	b6_precond(deque != NULL);
 
-	return deque->head.ref == &deque->tail;
+	return (struct b6_sref *) &deque->head;
+}
+
+/**
+ * @ingroup deque
+ * @brief Return the reference of the tail of a doubly-ended queue
+ *
+ * The head reference is such that there is no previous reference in the
+ * container. It cannot be dereferenced as it is associated with no element.
+ *
+ * @complexity O(1)
+ * @param deque pointer to the doubly-ended queue
+ * @return pointer to the reference of the tail of the doubly-ended queue
+ */
+static inline struct b6_sref *b6_deque_tail(const struct b6_deque *deque)
+{
+	b6_precond(deque != NULL);
+
+	return (struct b6_sref *) &deque->tail;
 }
 
 /**
@@ -185,15 +206,56 @@ static inline struct b6_sref *b6_deque_walk(const struct b6_deque *deque,
 	if (direction == B6_NEXT)
 		return curr->ref;
 
-	if (curr == &deque->tail)
+	if (curr == b6_deque_tail(deque))
 		return deque->last;
 
-	if (curr == &deque->head)
+	if (curr == b6_deque_head(deque))
 		return NULL;
 
-	for (prev = &deque->head; prev->ref != curr; prev = prev->ref);
+	for (prev = b6_deque_head(deque); prev->ref != curr; prev = prev->ref);
 
 	return (struct b6_sref *)prev;
+}
+
+/**
+ * @ingroup deque
+ * @brief Return the reference of the first element of a doubly-ended queue
+ * @complexity O(1)
+ * @param deque pointer to the doubly-ended queue
+ * @return pointer to the reference after the head
+ *
+ * If the container is empty, then its tail reference is returned
+ */
+static inline struct b6_sref *b6_deque_first(const struct b6_deque *deque)
+{
+	return b6_deque_walk(deque, b6_deque_head(deque), B6_NEXT);
+}
+
+/**
+ * @ingroup deque
+ * @brief Return the reference of the last element of a doubly-ended queue
+ * @complexity O(1)
+ * @param deque pointer to the doubly-ended queue
+ * @return pointer to the reference before the tail
+ *
+ * If the container is empty, then its tail reference is returned
+ */
+static inline struct b6_sref *b6_deque_last(const struct b6_deque *deque)
+{
+	return b6_deque_walk(deque, b6_deque_tail(deque), B6_PREV);
+}
+
+/**
+ * @ingroup deque
+ * @brief Test if a doubly-ended queue contains elements
+ * @complexity O(1)
+ * @param deque pointer to the doubly-ended queue
+ * @return 0 if the deque contains one element or more and another value if it
+ * does not contains any elements
+ */
+static inline int b6_deque_empty(const struct b6_deque *deque)
+{
+	return b6_deque_first(deque) == b6_deque_tail(deque);
 }
 
 /**
@@ -432,32 +494,6 @@ static inline struct b6_sref *b6_deque_del_last(struct b6_deque *deque)
 }
 
 /**
- * @ingroup deque
- * @brief Return the reference of the first element of a doubly-ended queue
- * @complexity O(1)
- * @param deque pointer to the doubly-ended queue
- * @return pointer to the reference of the first element or tail if the
- * doubly-ended queue is empty
- */
-static inline struct b6_sref *b6_deque_first(const struct b6_deque *deque)
-{
-	return deque->head.ref;
-}
-
-/**
- * @ingroup deque
- * @brief Return the reference of the last element of a doubly-ended queue
- * @complexity O(1)
- * @param deque pointer to the doubly-ended queue
- * @return pointer to the reference of the last element or head if the
- * doubly-ended queue is empty
- */
-static inline struct b6_sref *b6_deque_last(const struct b6_deque *deque)
-{
-	return deque->last;
-}
-
-/**
  * @defgroup list Doubly-linked list
  *
  * Doubly-linked list is a deque where each element is linked to its successor
@@ -496,10 +532,96 @@ struct b6_list {
  */
 static inline void b6_list_initialize(struct b6_list *list)
 {
+	b6_precond(list != NULL);
+
 	list->head.ref[B6_NEXT] = &list->tail;
 	list->head.ref[B6_PREV] = NULL;
 	list->tail.ref[B6_NEXT] = NULL;
 	list->tail.ref[B6_PREV] = &list->head;
+}
+
+/**
+ * @ingroup list
+ * @brief Return the reference of the head of a doubly-linked list
+ * @complexity O(1)
+ * @param list pointer to the doubly-linked list
+ * @return pointer to the reference of the head of the doubly-linked list
+ *
+ * The tail reference is such that there is no next reference in the
+ * container. It cannot be dereferenced as it is associated with no element.
+ *
+ */
+static inline struct b6_dref *b6_list_head(const struct b6_list *list)
+{
+	b6_precond(list != NULL);
+
+	return (struct b6_dref *) &list->head;
+}
+
+/**
+ * @ingroup list
+ * @brief Return the reference of the tail of a doubly-linked list
+ * @complexity O(1)
+ * @param list pointer to the doubly-linked list
+ * @return pointer to the reference of the tail of the doubly-linked list
+ *
+ * The head reference is such that there is no previous reference in the
+ * container. It cannot be dereferenced as it is associated with no element.
+ *
+ */
+static inline struct b6_dref *b6_list_tail(const struct b6_list *list)
+{
+	b6_precond(list != NULL);
+
+	return (struct b6_dref *) &list->tail;
+}
+
+/**
+ * @brief Travel a doubly-linked list reference per reference
+ * @ingroup list
+ * @complexity O(1)
+ * @param list pointer to the doubly-linked list
+ * @param dref reference to walk from
+ * @param direction B6_PREV or B6_NEXT to get the previous or next reference
+ * respectively
+ * @return NULL when going out of range or the next or previous reference in
+ * the sequence
+ */
+static inline struct b6_dref *b6_list_walk(const struct b6_list *list,
+                                           const struct b6_dref *dref,
+                                           int direction)
+{
+	b6_precond((unsigned)direction < b6_card_of(dref->ref));
+	b6_precond(list != NULL);
+	b6_precond(dref != NULL);
+
+	return (struct b6_dref *)dref->ref[direction];
+}
+
+/**
+ * @brief Return the reference of the first element of a doubly-linked list
+ * @ingroup list
+ * @complexity O(1)
+ * @param list pointer to the doubly-linked list
+ * @return pointer to the reference of the first element or tail if the
+ * list is empty
+ */
+static inline struct b6_dref *b6_list_first(const struct b6_list *list)
+{
+	return b6_list_walk(list, b6_list_head(list), B6_NEXT);
+}
+
+/**
+ * @brief Return the reference of the last element of a doubly-linked list
+ * @ingroup list
+ * @complexity O(1)
+ * @param list pointer to the doubly-linked list
+ * @return pointer to the reference of the last element or head if the
+ * list is empty
+ */
+static inline struct b6_dref *b6_list_last(const struct b6_list *list)
+{
+	return b6_list_walk(list, b6_list_tail(list), B6_PREV);
 }
 
 /**
@@ -512,9 +634,7 @@ static inline void b6_list_initialize(struct b6_list *list)
  */
 static inline int b6_list_empty(const struct b6_list *list)
 {
-	b6_precond(list != NULL);
-
-	return list->head.ref[B6_NEXT] == &list->tail;
+	return b6_list_first(list) == b6_list_tail(list);
 }
 
 /**
@@ -550,8 +670,8 @@ static inline struct b6_dref *b6_list_add(struct b6_list *list,
 }
 
 /**
- * @brief Remove an element within the doubly-linked list
  * @ingroup list
+ * @brief Remove an element within the doubly-linked list
  *
  * It is illegal to attempt to remove the head or the tail reference of the
  * doubly-linked list.
@@ -584,28 +704,6 @@ static inline struct b6_dref *b6_list_del(struct b6_list *list,
 }
 
 /**
- * @brief Travel a doubly-linked list reference per reference
- * @ingroup list
- * @complexity O(1)
- * @param list pointer to the doubly-linked list
- * @param dref reference to walk from
- * @param direction B6_PREV or B6_NEXT to get the previous or next reference
- * respectively
- * @return NULL when going out of range or the next or previous reference in
- * the sequence
- */
-static inline struct b6_dref *b6_list_walk(const struct b6_list *list,
-                                           const struct b6_dref *dref,
-                                           int direction)
-{
-	b6_precond((unsigned)direction < b6_card_of(dref->ref));
-	b6_precond(list != NULL);
-	b6_precond(dref != NULL);
-
-	return (struct b6_dref *)dref->ref[direction];
-}
-
-/**
  * @brief Search a doubly-linked list for an element
  * @ingroup list
  * @complexity O(n)
@@ -615,7 +713,7 @@ static inline struct b6_dref *b6_list_walk(const struct b6_list *list,
  * @param arg opaque data to pass to func
  * @param direction either B6_NEXT or B6_PREV
  * @return pointer to the found element or a pointer to the head or tail of
- * doubly-ended queue when searching backwards or forwards repectively.
+ * doubly-linked list when searching backwards or forwards repectively.
  */
 static inline struct b6_dref *b6_list_find(const struct b6_list *list,
                                            const struct b6_dref *prev,
@@ -689,32 +787,6 @@ static inline struct b6_dref *b6_list_del_last(struct b6_list *list)
 }
 
 /**
- * @brief Return the reference of the first element of a doubly-linked list
- * @ingroup list
- * @complexity O(1)
- * @param list pointer to the doubly-linked list
- * @return pointer to the reference of the first element or tail if the
- * list is empty
- */
-static inline struct b6_dref *b6_list_first(const struct b6_list *list)
-{
-	return list->head.ref[B6_NEXT];
-}
-
-/**
- * @brief Return the reference of the last element of a doubly-linked list
- * @ingroup list
- * @complexity O(1)
- * @param list pointer to the doubly-linked list
- * @return pointer to the reference of the last element or head if the
- * list is empty
- */
-static inline struct b6_dref *b6_list_last(const struct b6_list *list)
-{
-	return list->tail.ref[B6_PREV];
-}
-
-/**
  * @defgroup splay Splay trees
  *
  * Splay trees are self-balanced binary search trees where recently accessed
@@ -750,6 +822,98 @@ void b6_splay_initialize(struct b6_splay *splay, b6_ref_compare_t compare);
 
 /**
  * @ingroup splay
+ * @brief Return the reference of the head of a splay tree
+ * @complexity O(1)
+ * @param splay pointer to the splay tree
+ * @return pointer to the reference of the head of the container
+ *
+ * The tail reference is such that there is no next reference in the
+ * container. It cannot be dereferenced as it is associated with no element.
+ *
+ */
+static inline struct b6_dref *b6_splay_head(const struct b6_splay *splay)
+{
+	b6_precond(splay != NULL);
+
+	return (struct b6_dref *) &splay->head;
+}
+
+/**
+ * @ingroup splay
+ * @brief Return the reference of the tail of a splay tree
+ * @complexity O(1)
+ * @param splay pointer to the splay tree
+ * @return pointer to the reference of the tail of the container
+ *
+ * The head reference is such that there is no previous reference in the
+ * container. It cannot be dereferenced as it is associated with no element.
+ *
+ */
+static inline struct b6_dref *b6_splay_tail(const struct b6_splay *splay)
+{
+	b6_precond(splay != NULL);
+
+	return (struct b6_dref *) &splay->tail;
+}
+
+/**
+ * @ingroup splay
+ * @brief Return the reference of the most recently accessed reference
+ * @complexity O(1)
+ * @param splay pointer to the splay tree
+ * @return pointer to the root reference of the splay tree
+ */
+static inline struct b6_dref *b6_splay_root(const struct b6_splay *splay)
+{
+	b6_precond(splay != NULL);
+
+	return splay->root;
+}
+
+/**
+ * @ingroup splay
+ * @brief In-order traveling of a splay tree
+ * @complexity O(ln(n))
+ * @param splay pointer to the splay tree
+ * @param dref reference to walk from
+ * @param direction B6_PREV (B6_NEXT) to get the reference of the greatest
+ * smaller elements (smallest greater elements respectively)
+ * @return NULL when going out of range or the next or previous reference in
+ * the sequence
+ */
+struct b6_dref *b6_splay_walk(const struct b6_splay *splay,
+                              const struct b6_dref *dref, int direction);
+
+/**
+ * @ingroup splay
+ * @brief Return the reference of the smallest element in the splay tree
+ * according to how elements compare within it
+ * @complexity O(1)
+ * @param splay pointer to the splay tree
+ * @return pointer to the reference of the smallest element or tail if the
+ * tree is empty
+ */
+static inline struct b6_dref *b6_splay_first(const struct b6_splay *splay)
+{
+	return b6_splay_walk(splay, b6_splay_head(splay), B6_NEXT);
+}
+
+/**
+ * @ingroup splay
+ * @brief Return the reference of the greatest element in the splay tree
+ * according to how elements compare within it
+ * @complexity O(1)
+ * @param splay pointer to the splay tree
+ * @return pointer to the reference of the greatest element or tail if the
+ * tree is empty
+ */
+static inline struct b6_dref *b6_splay_last(const struct b6_splay *splay)
+{
+	return b6_splay_walk(splay, b6_splay_tail(splay), B6_PREV);
+}
+
+/**
+ * @ingroup splay
  * @brief Test if a splay tree contains elements
  * @complexity O(1)
  * @param splay pointer to the splay tree
@@ -758,10 +922,8 @@ void b6_splay_initialize(struct b6_splay *splay, b6_ref_compare_t compare);
  */
 static inline int b6_splay_empty(const struct b6_splay *splay)
 {
-	b6_precond(splay != NULL);
-
-	return &splay->tail == splay->head.ref[B6_NEXT] ||
-	       &splay->head == splay->tail.ref[B6_PREV];
+	return b6_splay_tail(splay) == b6_splay_head(splay)->ref[B6_NEXT] ||
+	       b6_splay_head(splay) == b6_splay_tail(splay)->ref[B6_PREV];
 }
 
 /**
@@ -798,49 +960,6 @@ struct b6_dref *b6_splay_del(struct b6_splay *splay);
 struct b6_dref *b6_splay_find(const struct b6_splay *splay,
                               b6_ref_examine_t examine, void *argument);
 
-/**
- * @ingroup splay
- * @brief In-order traveling of a splay tree
- * @complexity O(ln(n))
- * @param splay pointer to the splay tree
- * @param dref reference to walk from
- * @param direction B6_PREV (B6_NEXT) to get the reference of the greatest
- * smaller elements (smallest greater elements respectively)
- * @return NULL when going out of range or the next or previous reference in
- * the sequence
- */
-struct b6_dref *b6_splay_walk(const struct b6_splay *splay,
-                              const struct b6_dref *dref, int direction);
-
-/**
- * @ingroup splay
- * @brief Return the reference of the smallest element in the splay tree
- * according to how elements compare within it
- * @complexity O(1)
- * @param splay pointer to the splay tree
- * @return pointer to the reference of the smallest element or tail if the
- * tree is empty
- */
-static inline struct b6_dref *b6_splay_first(const struct b6_splay *splay)
-{
-	return b6_splay_walk(splay, &splay->head, B6_NEXT);
-}
-
-/**
- * @ingroup splay
- * @brief Return the reference of the greatest element in the splay tree
- * according to how elements compare within it
- * @complexity O(1)
- * @param deque pointer to the doubly-ended queue
- * @param splay pointer to the splay tree
- * @return pointer to the reference of the greatest element or tail if the
- * tree is empty
- */
-static inline struct b6_dref *b6_splay_last(const struct b6_splay *splay)
-{
-	return b6_splay_walk(splay, &splay->tail, B6_PREV);
-}
-
 struct b6_tree {
 	const struct b6_tree_ops *ops;
 	struct b6_tref head, tail, root;
@@ -859,12 +978,48 @@ extern const struct b6_tree_ops b6_rb_tree;
 void b6_tree_initialize(struct b6_tree *tree, b6_ref_compare_t compare,
                         const struct b6_tree_ops *ops);
 
+/**
+ * @ingroup tree
+ * @brief Return the reference of the head of a tree
+ * @complexity O(1)
+ * @param tree pointer to the tree
+ * @return pointer to the reference of the head of the container
+ *
+ * The tail reference is such that there is no next reference in the
+ * container. It cannot be dereferenced as it is associated with no element.
+ *
+ */
+static inline struct b6_tref *b6_tree_head(const struct b6_tree *tree)
+{
+	b6_precond(tree != NULL);
+
+	return (struct b6_tref *) &tree->head;
+}
+
+/**
+ * @ingroup tree
+ * @brief Return the reference of the tail of a tree
+ * @complexity O(1)
+ * @param tree pointer to the tree
+ * @return pointer to the reference of the tail of the container
+ *
+ * The head reference is such that there is no previous reference in the
+ * container. It cannot be dereferenced as it is associated with no element.
+ *
+ */
+static inline struct b6_tref *b6_tree_tail(const struct b6_tree *tree)
+{
+	b6_precond(tree != NULL);
+
+	return (struct b6_tref *) &tree->tail;
+}
+
 static inline int b6_tree_empty(const struct b6_tree *tree)
 {
 	b6_precond(tree != NULL);
 
-	return &tree->tail == tree->head.ref[B6_NEXT] ||
-	       &tree->head == tree->tail.ref[B6_PREV];
+	return b6_tree_tail(tree) == b6_tree_head(tree)->ref[B6_NEXT] ||
+	       b6_tree_head(tree) == b6_tree_tail(tree)->ref[B6_PREV];
 }
 
 struct b6_tref *b6_tree_find(const struct b6_tree *tree,
@@ -908,12 +1063,12 @@ struct b6_tref *b6_tree_walk(const struct b6_tree *tree,
 
 static inline struct b6_tref *b6_tree_first(const struct b6_tree *tree)
 {
-	return b6_tree_walk(tree, &tree->head, B6_NEXT);
+	return b6_tree_walk(tree, b6_tree_head(tree), B6_NEXT);
 }
 
 static inline struct b6_tref *b6_tree_last(const struct b6_tree *tree)
 {
-	return b6_tree_walk(tree, &tree->tail, B6_PREV);
+	return b6_tree_walk(tree, b6_tree_tail(tree), B6_PREV);
 }
 
 static inline int b6_tree_check(const struct b6_tree *tree,
