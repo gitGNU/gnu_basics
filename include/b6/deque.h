@@ -31,9 +31,8 @@
  * @see b6_sref
  */
 struct b6_deque {
-	struct b6_sref head; /**< reference before any element in the queue */
-	struct b6_sref tail; /**< reference after any element in the queue */
-	struct b6_sref *last; /**< reference before b6_deque::tail */
+	struct b6_sref sref; /**< sentinel in the doubly-ended queue */
+	struct b6_sref *last; /**< latest element or b6_deque::sref if empty */
 };
 
 /**
@@ -42,7 +41,7 @@ struct b6_deque {
  * @param deque name of the variable
  */
 #define B6_DEQUE_DEFINE(deque)						\
-	struct b6_deque deque = { { &deque.tail }, { NULL }, &deque.head }
+	struct b6_deque deque = { { &deque.sref }, &deque.sref }
 
 /**
  * @ingroup deque
@@ -52,47 +51,48 @@ struct b6_deque {
  */
 static inline void b6_deque_initialize(struct b6_deque *deque)
 {
-	b6_precond(deque != NULL);
+	b6_precond(deque);
 
-	deque->head.ref = &deque->tail;
-	deque->tail.ref = NULL;
-	deque->last = &deque->head;
+	deque->sref.ref = &deque->sref;
+	deque->last = &deque->sref;
 }
 
 /**
  * @ingroup deque
  * @brief Return the reference of the head of a doubly-ended queue
  *
- * The tail reference is such that there is no next reference in the
- * container. It cannot be dereferenced as it is associated with no element.
+ * The head reference cannot be dereferenced as it is associated with no
+ * element.
  *
  * @complexity O(1)
  * @param deque pointer to the doubly-ended queue
- * @return pointer to the reference of the head of the doubly-ended queue
+ * @return pointer to a reference which next reference is the first element in
+ * the doubly-ended queue
  */
 static inline struct b6_sref *b6_deque_head(const struct b6_deque *deque)
 {
-	b6_precond(deque != NULL);
+	b6_precond(deque);
 
-	return (struct b6_sref *) &deque->head;
+	return (struct b6_sref *)&deque->sref;
 }
 
 /**
  * @ingroup deque
  * @brief Return the reference of the tail of a doubly-ended queue
  *
- * The head reference is such that there is no previous reference in the
- * container. It cannot be dereferenced as it is associated with no element.
+ * The tail reference cannot be dereferenced as it is associated with no
+ * element.
  *
  * @complexity O(1)
  * @param deque pointer to the doubly-ended queue
- * @return pointer to the reference of the tail of the doubly-ended queue
+ * @return pointer to a reference which previous reference is the latest
+ * element in the doubly-ended queue
  */
 static inline struct b6_sref *b6_deque_tail(const struct b6_deque *deque)
 {
-	b6_precond(deque != NULL);
+	b6_precond(deque);
 
-	return (struct b6_sref *) &deque->tail;
+	return (struct b6_sref *)&deque->sref;
 }
 
 /**
@@ -112,8 +112,8 @@ static inline struct b6_sref *b6_deque_walk(const struct b6_deque *deque,
 {
 	const struct b6_sref *prev;
 
-	b6_precond(deque != NULL);
-	b6_precond(curr != NULL);
+	b6_precond(deque);
+	b6_precond(curr);
 	b6_precond(direction == B6_PREV || direction == B6_NEXT);
 
 	if (direction == B6_NEXT)
@@ -121,9 +121,6 @@ static inline struct b6_sref *b6_deque_walk(const struct b6_deque *deque,
 
 	if (curr == b6_deque_tail(deque))
 		return deque->last;
-
-	if (curr == b6_deque_head(deque))
-		return NULL;
 
 	for (prev = b6_deque_head(deque); prev->ref != curr; prev = prev->ref);
 
@@ -168,7 +165,7 @@ static inline struct b6_sref *b6_deque_last(const struct b6_deque *deque)
  */
 static inline int b6_deque_empty(const struct b6_deque *deque)
 {
-	return b6_deque_first(deque) == b6_deque_tail(deque);
+	return b6_deque_head(deque) == b6_deque_last(deque);
 }
 
 /**
@@ -190,15 +187,15 @@ static inline struct b6_sref *b6_deque_add_after(struct b6_deque *deque,
 {
 	struct b6_sref *next;
 
-	b6_precond(prev != NULL);
+	b6_precond(prev);
 	next = prev->ref;
 
-	b6_precond(next != NULL);
-	b6_precond(deque != NULL);
-	if (b6_unlikely(prev == deque->last))
+	b6_precond(next);
+	b6_precond(deque);
+	if (b6_unlikely(prev == b6_deque_last(deque)))
 		deque->last = sref;
 
-	b6_precond(sref != NULL);
+	b6_precond(sref);
 	sref->ref = next;
 	prev->ref = sref;
 
@@ -223,15 +220,15 @@ static inline struct b6_sref *b6_deque_del_after(struct b6_deque *deque,
 {
 	struct b6_sref *curr;
 
-	b6_precond(prev != NULL);
+	b6_precond(prev);
 	curr = prev->ref;
 
-	b6_precond(deque != NULL);
-	if (b6_unlikely(curr == deque->last))
+	b6_precond(deque);
+	if (b6_unlikely(curr == b6_deque_last(deque)))
 		deque->last = prev;
 
-	b6_precond(curr != &deque->tail);
-	b6_precond(curr != NULL);
+	b6_precond(curr != b6_deque_last(deque));
+	b6_precond(curr);
 	prev->ref = curr->ref;
 
 	return curr;
@@ -250,9 +247,7 @@ static inline struct b6_sref *b6_deque_add(struct b6_deque *deque,
                                            struct b6_sref *next,
                                            struct b6_sref *sref)
 {
-	struct b6_sref *prev;
-
-	prev = b6_deque_walk(deque, next, B6_PREV);
+	struct b6_sref *prev = b6_deque_walk(deque, next, B6_PREV);
 
 	return b6_deque_add_after(deque, prev, sref);
 }
@@ -272,9 +267,7 @@ static inline struct b6_sref *b6_deque_add(struct b6_deque *deque,
 static inline struct b6_sref *b6_deque_del(struct b6_deque *deque,
                                            struct b6_sref *sref)
 {
-	struct b6_sref *prev;
-
-	prev = b6_deque_walk(deque, sref, B6_PREV);
+	struct b6_sref *prev = b6_deque_walk(deque, sref, B6_PREV);
 
 	return b6_deque_del_after(deque, prev);
 }
@@ -290,7 +283,7 @@ static inline struct b6_sref *b6_deque_del(struct b6_deque *deque,
 static inline struct b6_sref *b6_deque_add_first(struct b6_deque *deque,
                                                  struct b6_sref *sref)
 {
-	return b6_deque_add_after(deque, &deque->head, sref);
+	return b6_deque_add_after(deque, b6_deque_head(deque), sref);
 }
 
 /**
@@ -304,7 +297,7 @@ static inline struct b6_sref *b6_deque_add_first(struct b6_deque *deque,
 static inline struct b6_sref *b6_deque_add_last(struct b6_deque *deque,
                                                 struct b6_sref *sref)
 {
-	return b6_deque_add_after(deque, deque->last, sref);
+	return b6_deque_add_after(deque, b6_deque_last(deque), sref);
 }
 
 /**
@@ -317,7 +310,7 @@ static inline struct b6_sref *b6_deque_add_last(struct b6_deque *deque,
  */
 static inline struct b6_sref *b6_deque_del_first(struct b6_deque *deque)
 {
-	return b6_deque_del_after(deque, &deque->head);
+	return b6_deque_del_after(deque, b6_deque_head(deque));
 }
 
 /**
@@ -330,7 +323,7 @@ static inline struct b6_sref *b6_deque_del_first(struct b6_deque *deque)
  */
 static inline struct b6_sref *b6_deque_del_last(struct b6_deque *deque)
 {
-	return b6_deque_del(deque, deque->last);
+	return b6_deque_del(deque, b6_deque_last(deque));
 }
 
 #endif /* B6_DEQUE_H_ */

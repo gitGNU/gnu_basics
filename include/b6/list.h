@@ -29,8 +29,7 @@
  * @see b6_dref
  */
 struct b6_list {
-	struct b6_dref head; /**< reference before any element in the list */
-	struct b6_dref tail; /**< reference after any element in the list */
+	struct b6_dref dref; /**< sentinel of the list */
 };
 
 /**
@@ -38,8 +37,8 @@ struct b6_list {
  * @ingroup list
  * @param list name of the variable
  */
-#define B6_LIST_DEFINE(list)						\
-	struct b6_list list = {{{&list.tail, NULL}}, {{NULL, &list.head}}}
+#define B6_LIST_DEFINE(list)					\
+	struct b6_list list = {{{&list.dref, &list.dref}}}
 
 /**
  * @brief Initialize or clear a doubly-linked list
@@ -49,12 +48,10 @@ struct b6_list {
  */
 static inline void b6_list_initialize(struct b6_list *list)
 {
-	b6_precond(list != NULL);
+	b6_precond(list);
 
-	list->head.ref[B6_NEXT] = &list->tail;
-	list->head.ref[B6_PREV] = NULL;
-	list->tail.ref[B6_NEXT] = NULL;
-	list->tail.ref[B6_PREV] = &list->head;
+	list->dref.ref[B6_NEXT] = &list->dref;
+	list->dref.ref[B6_PREV] = &list->dref;
 }
 
 /**
@@ -62,17 +59,17 @@ static inline void b6_list_initialize(struct b6_list *list)
  * @brief Return the reference of the head of a doubly-linked list
  * @complexity O(1)
  * @param list pointer to the doubly-linked list
- * @return pointer to the reference of the head of the doubly-linked list
+ * @return pointer to a reference which next reference is the first element in
+ * the doubly-linked list
  *
- * The tail reference is such that there is no next reference in the
- * container. It cannot be dereferenced as it is associated with no element.
- *
+ * The head reference cannot be dereferenced as it is associated with no
+ * element.
  */
 static inline struct b6_dref *b6_list_head(const struct b6_list *list)
 {
-	b6_precond(list != NULL);
+	b6_precond(list);
 
-	return (struct b6_dref *) &list->head;
+	return (struct b6_dref *)&list->dref;
 }
 
 /**
@@ -80,17 +77,17 @@ static inline struct b6_dref *b6_list_head(const struct b6_list *list)
  * @brief Return the reference of the tail of a doubly-linked list
  * @complexity O(1)
  * @param list pointer to the doubly-linked list
- * @return pointer to the reference of the tail of the doubly-linked list
+ * @return pointer to a reference which previous reference is the last element
+ * in the doubly-linked list
  *
- * The head reference is such that there is no previous reference in the
- * container. It cannot be dereferenced as it is associated with no element.
- *
+ * The tail reference cannot be dereferenced as it is associated with no
+ * element.
  */
 static inline struct b6_dref *b6_list_tail(const struct b6_list *list)
 {
-	b6_precond(list != NULL);
+	b6_precond(list);
 
-	return (struct b6_dref *) &list->tail;
+	return (struct b6_dref *)&list->dref;
 }
 
 /**
@@ -109,8 +106,8 @@ static inline struct b6_dref *b6_list_walk(const struct b6_list *list,
                                            int direction)
 {
 	b6_precond((unsigned)direction < b6_card_of(dref->ref));
-	b6_precond(list != NULL);
-	b6_precond(dref != NULL);
+	b6_precond(list);
+	b6_precond(dref);
 
 	return (struct b6_dref *)dref->ref[direction];
 }
@@ -167,19 +164,13 @@ static inline struct b6_dref *b6_list_add(struct b6_list *list,
                                           struct b6_dref *next,
                                           struct b6_dref *dref)
 {
-	struct b6_dref *prev;
+	struct b6_dref *prev = b6_list_walk(list, next, B6_PREV);
 
-	b6_precond(list != NULL);
-
-	b6_precond(next != NULL);
-	prev = next->ref[B6_PREV];
-
-	b6_precond(prev != NULL);
-	b6_precond(next != &list->head);
+	b6_precond(prev);
 	prev->ref[B6_NEXT] = dref;
 	next->ref[B6_PREV] = dref;
 
-	b6_precond(dref != NULL);
+	b6_precond(dref);
 	dref->ref[B6_PREV] = prev;
 	dref->ref[B6_NEXT] = next;
 
@@ -201,18 +192,13 @@ static inline struct b6_dref *b6_list_add(struct b6_list *list,
 static inline struct b6_dref *b6_list_del(struct b6_list *list,
                                           struct b6_dref *dref)
 {
-	struct b6_dref *prev, *next;
+	struct b6_dref *prev = b6_list_walk(list, dref, B6_PREV);
+	struct b6_dref *next = b6_list_walk(list, dref, B6_NEXT);
 
-	b6_precond(list != NULL);
-
-	b6_precond(dref != NULL);
-	prev = dref->ref[B6_PREV];
-	next = dref->ref[B6_NEXT];
-
-	b6_precond(prev != NULL);
-	b6_precond(next != NULL);
-	b6_precond(dref != &list->head);
-	b6_precond(dref != &list->tail);
+	b6_precond(prev);
+	b6_precond(next);
+	b6_precond(dref != b6_list_head(list));
+	b6_precond(dref != b6_list_tail(list));
 
 	prev->ref[B6_NEXT] = next;
 	next->ref[B6_PREV] = prev;
@@ -231,7 +217,7 @@ static inline struct b6_dref *b6_list_del(struct b6_list *list,
 static inline struct b6_dref *b6_list_add_first(struct b6_list *list,
                                                 struct b6_dref *dref)
 {
-	return b6_list_add(list, list->head.ref[B6_NEXT], dref);
+	return b6_list_add(list, b6_list_first(list), dref);
 }
 
 /**
@@ -245,7 +231,7 @@ static inline struct b6_dref *b6_list_add_first(struct b6_list *list,
 static inline struct b6_dref *b6_list_add_last(struct b6_list *list,
                                                struct b6_dref *dref)
 {
-	return b6_list_add(list, &list->tail, dref);
+	return b6_list_add(list, b6_list_tail(list), dref);
 }
 
 /**
@@ -257,7 +243,7 @@ static inline struct b6_dref *b6_list_add_last(struct b6_list *list,
  */
 static inline struct b6_dref *b6_list_del_first(struct b6_list *list)
 {
-	return b6_list_del(list, list->head.ref[B6_NEXT]);
+	return b6_list_del(list, b6_list_first(list));
 }
 
 /**
@@ -270,7 +256,7 @@ static inline struct b6_dref *b6_list_del_first(struct b6_list *list)
  */
 static inline struct b6_dref *b6_list_del_last(struct b6_list *list)
 {
-	return b6_list_del(list, list->tail.ref[B6_PREV]);
+	return b6_list_del(list,  b6_list_last(list));
 }
 
 #endif /* B6_LIST_H_ */

@@ -148,7 +148,7 @@ void b6_pool_finalize(struct b6_pool *pool)
 	while (b6_list_empty(&pool->list)) {
 		struct b6_chunk *chunk;
 
-		chunk = b6_container_of(&pool->list.head.ref[B6_NEXT],
+		chunk = b6_container_of(b6_list_first(&pool->list),
 		                        struct b6_chunk, dref);
 		finalize_chunk(pool, chunk);
 		release_chunk(pool, chunk);

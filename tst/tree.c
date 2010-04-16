@@ -96,12 +96,12 @@ static int do_tree_test(const struct b6_tree_ops *ops)
 		}
 	}
 
-	while (b6_deque_walk(&deque, &deque.head, B6_NEXT) != &deque.tail) {
+	while (!b6_deque_empty(&deque)) {
 		struct node *node;
 		struct b6_sref *sref;
 		struct b6_tref *tref;
 
-		sref = b6_deque_del_after(&deque, &deque.head);
+		sref = b6_deque_del_first(&deque);
 		node = b6_container_of(sref, struct node, sref);
 		tref = b6_tree_del(&tree, &node->tref);
 		b6_assert(tref == &node->tref);

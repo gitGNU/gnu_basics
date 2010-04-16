@@ -36,6 +36,7 @@ static int first_is_tail_when_empty()
 	return b6_list_first(&list) == b6_list_tail(&list);
 }
 
+/* Not valid anymore since head and tail have merged
 static int add_before_head()
 {
 	B6_LIST_DEFINE(list);
@@ -51,6 +52,7 @@ static int add_before_head()
 
 	return retval;
 }
+*/
 
 static int add_null()
 {
@@ -238,6 +240,7 @@ static int del()
 	return 1;
 }
 
+/* Not valid anymore since head and tail have merged
 static int walk_on_bounds()
 {
 	B6_LIST_DEFINE(list);
@@ -258,6 +261,7 @@ static int walk_on_bounds()
 
 	return 1;
 }
+*/
 
 static int walk()
 {
@@ -303,7 +307,7 @@ int main(int argc, const char *argv[])
 	test_exec(runtime_init,);
 	test_exec(last_is_head_when_empty,);
 	test_exec(first_is_tail_when_empty,);
-	test_exec(add_before_head,);
+	/*test_exec(add_before_head,);*/
 	test_exec(add_null,);
 	test_exec(add,);
 	test_exec(add_first,);
@@ -314,7 +318,7 @@ int main(int argc, const char *argv[])
 	test_exec(del_first_when_empty,);
 	test_exec(del_last_when_empty,);
 	test_exec(del,);
-	test_exec(walk_on_bounds,);
+	/*test_exec(walk_on_bounds,);*/
 	test_exec(walk,);
 
 	test_exit();

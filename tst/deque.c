@@ -10,7 +10,8 @@ static int static_init()
 {
 	B6_DEQUE_DEFINE(deque);
 
-	return b6_deque_empty(&deque) && deque.last == &deque.head;
+	return b6_deque_empty(&deque) &&
+		b6_deque_first(&deque) == b6_deque_tail(&deque);
 }
 
 static int runtime_init()
@@ -19,19 +20,20 @@ static int runtime_init()
 
 	b6_deque_initialize(&deque);
 
-	return b6_deque_empty(&deque) && deque.last == &deque.head;
+	return b6_deque_empty(&deque) &&
+		b6_deque_last(&deque) == b6_deque_head(&deque);
 }
 
 static int first_is_tail_when_empty()
 {
 	B6_DEQUE_DEFINE(deque);
-	return b6_deque_first(&deque) == &deque.tail;
+	return b6_deque_first(&deque) == b6_deque_tail(&deque);
 }
 
 static int last_is_head_when_empty()
 {
 	B6_DEQUE_DEFINE(deque);
-	return b6_deque_last(&deque) == &deque.head;
+	return b6_deque_last(&deque) == b6_deque_head(&deque);
 }
 
 static int add_null_after()
@@ -66,6 +68,7 @@ static int add_after_null()
 	return retval;
 }
 
+/* not relevant anymore since head and tail members have merged
 static int add_before_head()
 {
 	B6_DEQUE_DEFINE(deque);
@@ -76,7 +79,7 @@ static int add_before_head()
 	retval = setjmp(env);
 	if (!retval) {
 		test_handler = &env;
-		b6_deque_add(&deque, &deque.head, &sref);
+		b6_deque_add(&deque, b6_deque_head(&deque), &sref);
 	}
 
 	return retval;
@@ -92,18 +95,19 @@ static int add_after_tail()
 	retval = setjmp(env);
 	if (!retval) {
 		test_handler = &env;
-		b6_deque_add_after(&deque, &deque.tail, &sref);
+		b6_deque_add_after(&deque, b6_deque_tail(&deque), &sref);
 	}
 
 	return retval;
 }
+*/
 
 static int add_after()
 {
 	B6_DEQUE_DEFINE(deque);
 	struct b6_sref sref;
 
-	if (&sref != b6_deque_add_after(&deque, &deque.head, &sref))
+	if (&sref != b6_deque_add_after(&deque, b6_deque_head(&deque), &sref))
 		return 0;
 
 	if (b6_deque_empty(&deque))
@@ -117,7 +121,7 @@ static int add_after_last()
 	B6_DEQUE_DEFINE(deque);
 	struct b6_sref sref;
 
-	if (&sref != b6_deque_add_after(&deque, deque.last, &sref))
+	if (&sref != b6_deque_add_after(&deque, b6_deque_last(&deque), &sref))
 		return 0;
 
 	if (&sref != b6_deque_last(&deque))
@@ -134,7 +138,7 @@ static int add()
 	B6_DEQUE_DEFINE(deque);
 	struct b6_sref sref;
 
-	if (&sref != b6_deque_add(&deque, &deque.tail, &sref))
+	if (&sref != b6_deque_add(&deque, b6_deque_tail(&deque), &sref))
 		return 0;
 
 	if (b6_deque_empty(&deque))
@@ -186,7 +190,7 @@ static int del_after_tail()
 	retval = setjmp(env);
 	if (!retval) {
 		test_handler = &env;
-		b6_deque_del_after(&deque, &deque.tail);
+		b6_deque_del_after(&deque, b6_deque_tail(&deque));
 	}
 
 	return retval;
@@ -201,7 +205,7 @@ static int del_after_last()
 	retval = setjmp(env);
 	if (!retval) {
 		test_handler = &env;
-		b6_deque_del_after(&deque, deque.last);
+		b6_deque_del_after(&deque, b6_deque_last(&deque));
 	}
 
 	return retval;
@@ -231,7 +235,7 @@ static int del_head()
 	retval = setjmp(env);
 	if (!retval) {
 		test_handler = &env;
-		b6_deque_del(&deque, &deque.head);
+		b6_deque_del(&deque, b6_deque_head(&deque));
 	}
 
 	return retval;
@@ -246,7 +250,7 @@ static int del_tail()
 	retval = setjmp(env);
 	if (!retval) {
 		test_handler = &env;
-		b6_deque_del(&deque, &deque.tail);
+		b6_deque_del(&deque, b6_deque_tail(&deque));
 	}
 
 	return retval;
@@ -296,11 +300,11 @@ static int del_after()
 		if (&sref[b6_card_of(sref) - 1] != b6_deque_last(&deque))
 			return 0;
 
-		if (&sref[i] != b6_deque_del_after(&deque, &deque.head))
+		if (&sref[i] != b6_deque_del_after(&deque, b6_deque_head(&deque)))
 			return 0;
 	}
 
-	if (&deque.head != b6_deque_last(&deque))
+	if (b6_deque_head(&deque) != b6_deque_last(&deque))
 		return 0;
 
 	if (!b6_deque_empty(&deque))
@@ -314,7 +318,7 @@ static int del()
 	B6_DEQUE_DEFINE(deque);
 	struct b6_sref sref;
 
-	if (&sref != b6_deque_add(&deque, &deque.tail, &sref))
+	if (&sref != b6_deque_add(&deque, b6_deque_tail(&deque), &sref))
 		return 0;
 
 	if (&sref != b6_deque_del(&deque, &sref))
@@ -326,24 +330,26 @@ static int del()
 	return 1;
 }
 
+/* not relevant anymore since head and tail members have merged
 static int walk_on_bounds()
 {
 	B6_DEQUE_DEFINE(deque);
 
-	if (b6_deque_walk(&deque, &deque.head, B6_NEXT) != &deque.tail)
+	if (b6_deque_walk(&deque, b6_deque_head(&deque), B6_NEXT) != b6_deque_tail(&deque))
 		return 0;
 
-	if (b6_deque_walk(&deque, &deque.head, B6_PREV) != NULL)
+	if (b6_deque_walk(&deque, b6_deque_head(&deque), B6_PREV) != NULL)
 		return 0;
 
-	if (b6_deque_walk(&deque, &deque.tail, B6_NEXT) != NULL)
+	if (b6_deque_walk(&deque, b6_deque_tail(&deque), B6_NEXT) != NULL)
 		return 0;
 
-	if (b6_deque_walk(&deque, &deque.tail, B6_PREV) != &deque.head)
+	if (b6_deque_walk(&deque, b6_deque_tail(&deque), B6_PREV) != b6_deque_head(&deque))
 		return 0;
 
 	return 1;
 }
+*/
 
 static int walk()
 {
@@ -356,7 +362,7 @@ static int walk()
 		if (&sref[i] != b6_deque_add_last(&deque, &sref[i]))
 			return 0;
 
-	for (i = 0, iter = b6_deque_first(&deque); iter != &deque.tail;
+	for (i = 0, iter = b6_deque_first(&deque); iter != b6_deque_tail(&deque);
 	     iter = b6_deque_walk(&deque, iter, B6_NEXT), i += 1)
 		if (iter != &sref[i])
 			return 0;
@@ -364,7 +370,7 @@ static int walk()
 	if (i != b6_card_of(sref))
 		return 0;
 
-	for (i = 0, iter = b6_deque_last(&deque); iter != &deque.head;
+	for (i = 0, iter = b6_deque_last(&deque); iter != b6_deque_head(&deque);
 	     iter = b6_deque_walk(&deque, iter, B6_PREV), i += 1)
 		if (iter != &sref[b6_card_of(sref) - 1 - i])
 			return 0;
@@ -380,7 +386,7 @@ static int del_last()
 	B6_DEQUE_DEFINE(deque);
 	struct b6_sref sref;
 
-	if (&sref != b6_deque_add(&deque, &deque.tail, &sref))
+	if (&sref != b6_deque_add(&deque, b6_deque_tail(&deque), &sref))
 		return 0;
 
 	if (&sref != b6_deque_last(&deque))
@@ -411,8 +417,8 @@ int main(int argc, const char *argv[])
 	test_exec(last_is_head_when_empty,);
 	test_exec(add_null_after,);
 	test_exec(add_after_null,);
-	test_exec(add_before_head,);
-	test_exec(add_after_tail,);
+	/*test_exec(add_before_head,);
+	  test_exec(add_after_tail,);*/
 	test_exec(add_after,);
 	test_exec(add_after_last,);
 	test_exec(add,);
@@ -427,7 +433,7 @@ int main(int argc, const char *argv[])
 	test_exec(del_last_when_empty,);
 	test_exec(del_after,);
 	test_exec(del,);
-	test_exec(walk_on_bounds,);
+	/*test_exec(walk_on_bounds,);*/
 	test_exec(walk,);
 	test_exec(del_last,);
 
