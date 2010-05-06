@@ -25,7 +25,8 @@
  * @param f specifies the field referenced by p
  * @return a pointer to the variable of type t
  */
-#define b6_container_of(p, t, f) (t *) (((char *) p) - b6_offset_of(t, f))
+#define b6_cast_of(p, t, f) (t *) (((char *) p) - b6_offset_of(t, f))
+#define b6_container_of(p, t, f) b6_cast_of(p, t, f)
 
 /**
  * Get the cardinality of an array.
@@ -46,6 +47,50 @@
 	__typeof(i) _i = (i);                                                 \
 	((_i) >> (sizeof(_i) * 8 - 1)) - ((-(_i)) >> (sizeof(_i) * 8 - 1));   \
 })
+
+#define __b6_is_apot(i) !(i & (i - 1))
+
+/**
+ * @param i integer
+ * @return if an integer is a power of two.
+ */
+#define b6_is_apot(i)			\
+	({				\
+		__typeof(i) _i = (i);	\
+		__b6_is_apot(_i);	\
+	})
+
+#define __b6_is_apot_minus_one(i) !(i & (i + 1))
+
+/**
+ * @param i integer
+ * @return if an integer has a form of 2^n - 1.
+ */
+#define b6_is_apot_minus_one(i)			\
+	({					\
+		__typeof(i) _i = (i);		\
+		__b6_is_apot_minus_one(_i);	\
+	})
+
+/**
+ * Isolate the rightmost 1-bit, producing 0 if none
+ * @param i integer
+ */
+#define b6_rightmost_one(i)			\
+	({					\
+		__typeof(i) _i = (i);		\
+		_i & (-_i);			\
+	})
+
+/**
+ * Isolate the rightmost 0-bit, producing 0 if none
+ * @param i integer
+ */
+#define b6_rightmost_zero(i)			\
+	({					\
+		__typeof(i) _i = (i);		\
+		(~_i) & (_i + 1);		\
+	})
 
 /**
  * @def b6_likely

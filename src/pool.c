@@ -116,7 +116,7 @@ int b6_pool_initialize(struct b6_pool *pool, struct b6_allocator *allocator,
 
 	/* align the size of a ptr to a multiple of queue_node */
 	b6_static_assert(sizeof(struct b6_sref) == sizeof(void*));
-	b6_static_assert(!(sizeof(void *) & (sizeof(void*) - 1)));
+	b6_static_assert(__b6_is_apot(sizeof(void *)));
 	size = (size + (sizeof(void*) - 1)) & ~(sizeof(void*) - 1);
 
 	/* calculate and/or check chunk_size */
