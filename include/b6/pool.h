@@ -45,8 +45,8 @@ struct b6_pool {
  * @param allocator specifies the allocator used for dynamically allocating
  *        chunks.
  */
-void b6_pool_initialize(struct b6_pool *pool, unsigned size,
-                        unsigned chunk_size, struct b6_allocator *allocator);
+int b6_pool_initialize(struct b6_pool *pool, struct b6_allocator *allocator,
+		       unsigned size, unsigned chunk_size);
 
 /**
  * Finalize a pool allocator.

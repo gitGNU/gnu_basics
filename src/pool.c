@@ -105,44 +105,41 @@ void b6_pool_deallocate(struct b6_allocator *self, void *ptr)
 	b6_pool_put(pool, ptr);
 }
 
-void b6_pool_initialize(struct b6_pool *pool, unsigned size,
-                        unsigned chunk_size, struct b6_allocator *allocator)
+int b6_pool_initialize(struct b6_pool *pool, struct b6_allocator *allocator,
+		       unsigned size, unsigned chunk_size)
 {
-	static const struct b6_allocator_ops ops = {
+	const struct b6_allocator_ops ops = {
 		.allocate = b6_pool_allocate,
 		.reallocate = b6_pool_reallocate,
 		.deallocate = b6_pool_deallocate,
 	};
 
 	/* align the size of a ptr to a multiple of queue_node */
-#ifndef OPTIMIZE
-	int rest = size % sizeof(struct b6_sref);
-	if (rest)
-		size += sizeof(struct b6_sref) - rest;
-#else /* OPTIMIZE */
-	b6_static_assert(sizeof(struct b6_sref) == sizeof(void *));
-	b6_static_assert(sizeof(void *) == 4);
-	size = (size + 3) & ~3;
-#endif /* OPTIMIZE */
+	b6_static_assert(sizeof(struct b6_sref) == sizeof(void*));
+	b6_static_assert(!(sizeof(void *) & (sizeof(void*) - 1)));
+	size = (size + (sizeof(void*) - 1)) & ~(sizeof(void*) - 1);
 
-	/* Probably we should align the chunk size to a power of two minus
-	   the size of a pointer to be kind to system allocator. This will
-	   be supposed done before when we will support underlying
-	   allocator as a parameter. Anyway, the chunk structure has its
-	   own payload we have to consider. Or should we also let the
-	   caller take care of that and just verify? */
-	chunk_size += sizeof(struct b6_chunk);
+	/* calculate and/or check chunk_size */
+	b6_static_assert(sizeof(struct b6_chunk) < 4096 - sizeof(void*));
+	if (!chunk_size) {
+		for (chunk_size = 4096; chunk_size - sizeof(struct b6_chunk) -
+			     sizeof(void*) < size; chunk_size *= 2)
+			if (!chunk_size)
+				return -1;
+	} else if (chunk_size < sizeof(void*) + sizeof(struct b6_chunk) ||
+		   chunk_size - sizeof(void*) - sizeof(struct b6_chunk) < size)
+		return -1;
+	chunk_size -= sizeof(void*) + sizeof(struct b6_chunk);
 
+	pool->parent.ops = &ops;
 	pool->chunk_size = chunk_size;
 	pool->size = size;
-
+	pool->allocator = allocator;
 	b6_deque_initialize(&pool->queue);
 	b6_list_initialize(&pool->list);
 	b6_tree_initialize(&pool->tree, NULL, &b6_avl_tree);
 
-	pool->allocator = allocator;
-
-	pool->parent.ops = &ops;
+	return 0;
 }
 
 void b6_pool_finalize(struct b6_pool *pool)
