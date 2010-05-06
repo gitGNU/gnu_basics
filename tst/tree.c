@@ -1,7 +1,7 @@
 #include "node.h"
 
-#include "b6/utils.h"
-#include "b6/assert.h"
+#include "b6/deque.h"
+#include "b6/tree.h"
 
 #include <stdio.h>
 #include <stdlib.h>

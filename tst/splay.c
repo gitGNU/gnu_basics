@@ -1,6 +1,6 @@
 #include "node.h"
 
-#include "b6/utils.h"
+#include "b6/splay.h"
 
 #include <stdio.h>
 #include <stdlib.h>

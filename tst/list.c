@@ -1,4 +1,4 @@
-#include "b6/refs.h"
+#include "b6/list.h"
 #include "test.h"
 
 static int always_fails()

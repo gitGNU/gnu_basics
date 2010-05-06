@@ -12,7 +12,9 @@
 #ifndef POOL_H_
 #define POOL_H_
 
-#include "refs.h"
+#include "tree.h"
+#include "list.h"
+#include "deque.h"
 
 struct b6_allocator {
 	const struct b6_allocator_class *klass;
