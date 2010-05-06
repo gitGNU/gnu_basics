@@ -9,7 +9,7 @@
 /**
  * @file refs.h
  *
- * @brief This file provides the interface for handling with containers
+ * @brief Containers references
  *
  * Containers are objects that allows building collections of homogeneous
  * data, so-called elements. They are of two main types. Sequential containers
@@ -26,7 +26,7 @@
  *
  * Elements contains a reference as a member. It is possible to dereference a
  * reference to get the pointer of the element it is bound to using
- * b6_container_of. Here is an example with a simply-linked reference:
+ * b6_cast_of. Here is an example with a simply-linked reference:
  *
  * @code
  * struct element {
@@ -37,7 +37,7 @@
  *
  * struct element *foo(struct b6_sref *ref)
  * {
- *  	return b6_container_of(ref, struct element, sref);
+ *  	return b6_cast_of(ref, struct element, sref);
  * }
  * @endcode
  *
@@ -47,12 +47,22 @@
  *
  * @see b6_sref, b6_dref, b6_tref
  * @see b6_ref_compare_t, b6_ref_examine_t
+ * @see deque.h, list.h, vector.h, splay.h, tree.h
  */
 
 enum { B6_NEXT, B6_PREV };
 
+/**
+ * @brief Type definition for functions to be called back when comparing
+ * elements in a container.
+ */
 typedef int (*b6_ref_compare_t)(const void *ref1, const void *ref2);
 
+/**
+ * @brief Default function for comparing item based on their address
+ * @return 0 if both elements equal, -1 if the element a is smaller than
+ * b and 1 on the contrary.
+ */
 extern int b6_default_compare(const void *a, const void *b);
 
 /**
@@ -74,26 +84,28 @@ extern int b6_default_compare(const void *a, const void *b);
 typedef int (*b6_ref_examine_t)(const void *ref, void *arg);
 
 /**
- * @ingroup deque
  * @brief Single reference
+ * @see deque.h
  */
 struct b6_sref {
 	struct b6_sref *ref; /**< pointer to the next reference */
 };
 
 /**
- * @ingroup list, splay
  * @brief Double reference
+ * @see list.h, splay.h
  */
 struct b6_dref {
 	struct b6_dref *ref[2]; /**< pointers to other references */
 };
 
+/**
+ * @brief Triple reference
+ * @see tree.h
+ */
 struct b6_tref {
-	struct b6_tref *ref[2];
-	struct b6_tref *top;
-	signed char dir;
-	signed char balance;
+	struct b6_tref *ref[2]; /**< pointers to other references */
+	struct b6_tref *top; /**< pointer to parent reference */
 };
 
 #endif /* B6_REFS_H_ */
