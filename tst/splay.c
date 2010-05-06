@@ -12,48 +12,76 @@ static int splay_cmp(const void *ref1, const void *ref2)
 	return node_cmp(p1, p2);
 }
 
+static inline int do_search(struct b6_splay *splay, int *direction,
+			    struct b6_dref *dref)
+{
+	return b6_splay_search(splay, *direction, splay_cmp, dref);
+}
+
+
+static inline int do_add(struct b6_splay *splay, struct b6_dref *ref)
+{
+	int dir, ret;
+	if ((ret = do_search(splay, &dir, ref)))
+		b6_splay_add(splay, dir, ref);
+	return ret;
+}
+
+static inline int do_del(struct b6_splay *splay, struct b6_dref *ref)
+{
+	int dir, ret;
+	if ((ret = !do_search(splay, &dir, ref)))
+		b6_splay_del(splay);
+	return ret;
+}
+
+static void do_dbg(struct b6_dref *ref)
+{
+	printf("%p", ref);
+	if (!b6_splay_is_thread(ref)) {
+		struct node *node = b6_cast_of(ref, struct node, dref);
+		printf("[%u](", node->val);
+		do_dbg(ref->ref[0]);
+		printf(",");
+		do_dbg(ref->ref[1]);
+		printf(")");
+	}
+}
+
 int main(int argc, const char *argv[])
 {
-	int retval;
+	int retval = 0;
 	struct node nodes[16];
 	struct b6_splay splay;
 	struct b6_dref *ref;
 	unsigned u;
 
-	b6_splay_initialize(&splay, splay_cmp);
+	b6_splay_initialize(&splay);
 
-	u = b6_card_of(nodes);
-	while (u--) {
-		struct node *node;
-
-		node = &nodes[u];
+	for (u = b6_card_of(nodes); u--;) {
+		struct node *node = &nodes[u];
 		node->val = u & 1 ? b6_card_of(nodes) - u : u;
-
-		b6_splay_add(&splay, &node->dref);
+		printf("node[%u] dref=%p, val=%u\n", u, &node->dref, node->val);
+		do_add(&splay, &node->dref);
 	}
 
-	b6_splay_search(&splay, NULL, &nodes[8].dref);
-	b6_splay_del(&splay);
+/*	do_dbg(b6_splay_root(&splay)); puts("");*/
+	do_del(&splay, &nodes[3].dref);
+/*	do_dbg(b6_splay_root(&splay)); puts("");*/
 
-	ref = b6_splay_walk(&splay, &splay.head, B6_NEXT);
-	while (ref != &splay.tail) {
-		struct node *node;
-
-		node = b6_container_of(ref, struct node, dref);
+	for (ref = b6_splay_first(&splay); ref != b6_splay_tail(&splay);
+	     ref = b6_splay_walk(&splay, ref, B6_NEXT)) {
+		struct node *node = b6_cast_of(ref, struct node, dref);
 		printf("%u ", node->val);
 		fflush(stdout);
-		ref = b6_splay_walk(&splay, ref, B6_NEXT);
 	}
 	puts("");
 
-	ref = b6_splay_walk(&splay, &splay.tail, B6_PREV);
-	while (ref != &splay.head) {
-		struct node *node;
-
-		node = b6_container_of(ref, struct node, dref);
+	for (ref = b6_splay_last(&splay); ref != b6_splay_head(&splay);
+	     ref = b6_splay_walk(&splay, ref, B6_PREV)) {
+		struct node *node = b6_cast_of(ref, struct node, dref);
 		printf("%u ", node->val);
 		fflush(stdout);
-		ref = b6_splay_walk(&splay, ref, B6_PREV);
 	}
 	puts("");
 

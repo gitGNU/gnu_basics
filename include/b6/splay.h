@@ -11,17 +11,20 @@
 #include "assert.h"
 
 /**
- * @defgroup splay Splay trees
+ * @file splay.h
+ *
+ * @brief Splay tree container
  *
  * Splay trees are self-balanced binary search trees where recently accessed
- * elements are naturally moved near the root. As such, there is no need of an
- * extra balance parameter in reference. Thus, they have a small footprint in
- * memory compared to other trees since they only make use of double
+ * elements are naturally moved next to the root. As such, there is no need of
+ * an extra balance parameter in reference. Thus, they have a small footprint
+ * in memory compared to other trees since they only make use of double
  * references.
  *
- * The drawback is that in-order traversal is slower with splay trees than
- * with AVL or red/black trees as moving from one reference to the next one
- * sometimes require finding its parent, starting from the root.
+ * This implementation proposes threaded splay trees so that in-order
+ * traversal keeps good performances despite the lack of top reference. This
+ * eventually insertion and deletion a bit slower. Note that in-order travesal
+ * using b6_splay_walk does not move any element within the tree.xs
  */
 
 /**
@@ -29,20 +32,26 @@
  * @brief splay tree
  */
 struct b6_splay {
-	struct b6_dref head; /**< reference before any element in the tree */
-	struct b6_dref tail; /**< reference after any element in the tree */
-	struct b6_dref *root; /**< reference that has no parent in the tree */
-	b6_ref_compare_t comp; /**< how elements compare to each other */
+	struct b6_dref dref; /**< sentinel */
 };
 
-/**
- * @ingroup splay
- * @brief Initialize or clear a splay tree
- * @complexity O(1)
- * @param splay pointer to the splay tree
- * @param compare pointer to the function to call for comparing elements
- */
-void b6_splay_initialize(struct b6_splay *splay, b6_ref_compare_t compare);
+static inline int b6_splay_is_thread(const struct b6_dref *dref)
+{
+	b6_precond(dref);
+	return (unsigned long int)dref & 1;
+}
+
+static inline struct b6_dref *b6_splay_to_thread(const struct b6_dref *dref)
+{
+	b6_precond(dref);
+	return (struct b6_dref *)((unsigned long int)dref | 1);
+}
+
+static inline struct b6_dref *b6_splay_from_thread(const struct b6_dref *dref)
+{
+	b6_precond(dref);
+	return (struct b6_dref *)((unsigned long int)dref & ~1);
+}
 
 /**
  * @ingroup splay
@@ -57,9 +66,8 @@ void b6_splay_initialize(struct b6_splay *splay, b6_ref_compare_t compare);
  */
 static inline struct b6_dref *b6_splay_head(const struct b6_splay *splay)
 {
-	b6_precond(splay != NULL);
-
-	return (struct b6_dref *) &splay->head;
+	b6_precond(splay);
+	return (struct b6_dref *)&splay->dref;
 }
 
 /**
@@ -75,9 +83,19 @@ static inline struct b6_dref *b6_splay_head(const struct b6_splay *splay)
  */
 static inline struct b6_dref *b6_splay_tail(const struct b6_splay *splay)
 {
-	b6_precond(splay != NULL);
+	return b6_splay_head(splay);
+}
 
-	return (struct b6_dref *) &splay->tail;
+/**
+ * @brief Initialize or clear a splay tree
+ * @complexity O(1)
+ * @param splay pointer to the splay tree
+ * @param compare pointer to the function to call for comparing elements
+ */
+static inline void b6_splay_initialize(struct b6_splay *splay)
+{
+	struct b6_dref *dref = b6_splay_head(splay);
+	dref->ref[0] = b6_splay_to_thread(dref);
 }
 
 /**
@@ -89,24 +107,53 @@ static inline struct b6_dref *b6_splay_tail(const struct b6_splay *splay)
  */
 static inline struct b6_dref *b6_splay_root(const struct b6_splay *splay)
 {
-	b6_precond(splay != NULL);
-
-	return splay->root;
+	struct b6_dref *dref = b6_splay_head(splay);
+	return dref->ref[0];
 }
 
 /**
- * @ingroup splay
+ * @brief Test if a splay tree contains elements
+ * @complexity O(1)
+ * @param splay pointer to the splay tree
+ * @return 0 if the list contains one element or more and another value if it
+ * does not contains any elements
+ */
+static inline int b6_splay_empty(const struct b6_splay *splay)
+{
+	return b6_splay_is_thread(b6_splay_root(splay));
+}
+
+/**
+ * @internal
+ */
+extern struct b6_dref *__b6_splay_dive(struct b6_dref *ref, int dir);
+
+/**
  * @brief In-order traveling of a splay tree
  * @complexity O(ln(n))
  * @param splay pointer to the splay tree
- * @param dref reference to walk from
+ * @param ref reference to walk from
  * @param direction B6_PREV (B6_NEXT) to get the reference of the greatest
  * smaller elements (smallest greater elements respectively)
  * @return NULL when going out of range or the next or previous reference in
  * the sequence
  */
-struct b6_dref *b6_splay_walk(const struct b6_splay *splay,
-                              const struct b6_dref *dref, int direction);
+static inline struct b6_dref *b6_splay_walk(const struct b6_splay *splay,
+					    struct b6_dref *dref, int dir)
+{
+	if (b6_unlikely(dref == b6_splay_head(splay))) {
+		struct b6_dref *root = b6_splay_root(splay);
+		if (b6_splay_is_thread(root))
+			return dref;
+		else
+			return __b6_splay_dive(root, dir ^ 1);
+	}
+
+	if (b6_splay_is_thread(dref->ref[dir]))
+		return b6_splay_from_thread(dref->ref[dir]);
+	else
+		return __b6_splay_dive(dref->ref[dir], dir ^ 1);
+}
 
 /**
  * @ingroup splay
@@ -137,29 +184,14 @@ static inline struct b6_dref *b6_splay_last(const struct b6_splay *splay)
 }
 
 /**
- * @ingroup splay
- * @brief Test if a splay tree contains elements
- * @complexity O(1)
- * @param splay pointer to the splay tree
- * @return 0 if the list contains one element or more and another value if it
- * does not contains any elements
- */
-static inline int b6_splay_empty(const struct b6_splay *splay)
-{
-	return b6_splay_tail(splay) == b6_splay_head(splay)->ref[B6_NEXT] ||
-	       b6_splay_head(splay) == b6_splay_tail(splay)->ref[B6_PREV];
-}
-
-/**
- * @ingroup splay
  * @brief Insert a new element in the a splay tree
  * @complexity O(log(n))
  * @param splay pointer to the splay tree
- * @param dref reference of the element to insert
- * @return dref if insertion succeded or the pointer to the element in the
- * tree that equals dref.
+ * @param ref reference of the element to insert
+ * @return ref
  */
-struct b6_dref *b6_splay_add(struct b6_splay *splay, struct b6_dref *dref);
+extern struct b6_dref *b6_splay_add(struct b6_splay *splay, int dir,
+				    struct b6_dref *ref);
 
 /**
  * @ingroup splay
@@ -168,7 +200,7 @@ struct b6_dref *b6_splay_add(struct b6_splay *splay, struct b6_dref *dref);
  * @param splay pointer to the splay tree
  * @return pointer to the reference of the element removed
  */
-struct b6_dref *b6_splay_del(struct b6_splay *splay);
+extern struct b6_dref *b6_splay_del(struct b6_splay *splay);
 
 /**
  * @ingroup splay
@@ -181,7 +213,56 @@ struct b6_dref *b6_splay_del(struct b6_splay *splay);
  * @return pointer to the element found that has become the root of the splay
  * tree or NULL if no element was found.
  */
-struct b6_dref *b6_splay_search(const struct b6_splay *splay,
-				b6_ref_examine_t examine, void *argument);
+
+#define b6_splay_search(splay, dir, cmp, arg)				\
+	({								\
+		struct b6_splay *_splay = (splay);			\
+		void *_arg = (arg);					\
+		struct b6_dref bak, *lnk[] = { &bak, &bak };		\
+		struct b6_dref *top = b6_splay_root(_splay);		\
+		int opp = 1, res = 1;					\
+									\
+		dir = 0;						\
+		if (b6_splay_is_thread(top))				\
+			goto bail_out;					\
+									\
+		while ((res = (cmp)(top, _arg))) {			\
+			opp = (res >> 1) & 1;				\
+			dir = opp ^ 1;					\
+									\
+			if (b6_splay_is_thread(top->ref[dir]))		\
+				break;					\
+									\
+			if (res == (cmp)(top->ref[dir], _arg)) {	\
+				struct b6_dref *swp = top->ref[dir];	\
+				if (b6_splay_is_thread(swp->ref[opp]))	\
+					top->ref[dir] =			\
+						b6_splay_to_thread(swp); \
+				else					\
+					top->ref[dir] = swp->ref[opp];	\
+				swp->ref[opp] = top;			\
+				top = swp;				\
+				if (b6_splay_is_thread(top->ref[dir]))	\
+					break;				\
+			}						\
+									\
+			lnk[opp]->ref[dir] = top;			\
+			lnk[opp] = top;					\
+			top = top->ref[dir];				\
+		}							\
+									\
+		if (b6_splay_to_thread(lnk[opp]) != top->ref[opp])	\
+			lnk[opp]->ref[dir] = top->ref[opp];		\
+		else							\
+			lnk[opp]->ref[dir] = b6_splay_to_thread(top);	\
+		lnk[dir]->ref[opp] = top->ref[dir];			\
+		top->ref[B6_PREV] = bak.ref[B6_NEXT];			\
+		top->ref[B6_NEXT] = bak.ref[B6_PREV];			\
+									\
+		_splay->dref.ref[0] = top;				\
+									\
+	bail_out:							\
+		res;							\
+	})
 
 #endif /* B6_SPLAY_H_ */
