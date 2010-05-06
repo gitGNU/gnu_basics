@@ -54,7 +54,7 @@ static void release_chunk(struct b6_pool *pool, struct b6_chunk *chunk)
 	if (pool->free == NULL)
 		pool->free = chunk;
 	else
-		b6_release(pool->allocator, chunk);
+		b6_deallocate(pool->allocator, chunk);
 }
 
 static int examine_chunk(const void *ref, void *arg)
@@ -82,9 +82,38 @@ static struct b6_chunk *find_chunk(struct b6_pool *pool, void *ptr)
 	return chunk;
 }
 
+void *b6_pool_allocate(struct b6_allocator *self, unsigned long size)
+{
+	struct b6_pool *pool = b6_container_of(self, struct b6_pool, allocator);
+	if (size > pool->size)
+		return NULL;
+	return b6_pool_get(pool);
+}
+
+void *b6_pool_reallocate(struct b6_allocator *self, void *ptr,
+			 unsigned long size)
+{
+	struct b6_pool *pool = b6_container_of(self, struct b6_pool, allocator);
+	if (size > pool->size)
+		return NULL;
+	return ptr;
+}
+
+void b6_pool_deallocate(struct b6_allocator *self, void *ptr)
+{
+	struct b6_pool *pool = b6_container_of(self, struct b6_pool, allocator);
+	b6_pool_put(pool, ptr);
+}
+
 void b6_pool_initialize(struct b6_pool *pool, unsigned size,
                         unsigned chunk_size, struct b6_allocator *allocator)
 {
+	static const struct b6_allocator_ops ops = {
+		.allocate = b6_pool_allocate,
+		.reallocate = b6_pool_reallocate,
+		.deallocate = b6_pool_deallocate,
+	};
+
 	/* align the size of a ptr to a multiple of queue_node */
 #ifndef OPTIMIZE
 	int rest = size % sizeof(struct b6_sref);
@@ -112,6 +141,8 @@ void b6_pool_initialize(struct b6_pool *pool, unsigned size,
 	b6_tree_initialize(&pool->tree, NULL, &b6_avl_tree);
 
 	pool->allocator = allocator;
+
+	pool->parent.ops = &ops;
 }
 
 void b6_pool_finalize(struct b6_pool *pool)
@@ -194,27 +225,4 @@ void b6_pool_put(struct b6_pool *pool, void *ptr)
 	b6_deque_add_first(&pool->queue, sref);
 	chunk->used -= 1;
 	chunk->flag = (chunk->used == 0);
-}
-
-void *allocate_in_pool(struct b6_allocator *self, unsigned long size)
-{
-	struct b6_pool *pool = b6_container_of(self, struct b6_pool, allocator);
-	if (size > pool->size)
-		return NULL;
-	return b6_pool_get(pool);
-}
-
-void *reallocate_in_pool(struct b6_allocator *self, void *ptr,
-			 unsigned long size)
-{
-	struct b6_pool *pool = b6_container_of(self, struct b6_pool, allocator);
-	if (size > pool->size)
-		return NULL;
-	return ptr;
-}
-
-void release_in_pool(struct b6_allocator *self, void *ptr)
-{
-	struct b6_pool *pool = b6_container_of(self, struct b6_pool, allocator);
-	b6_pool_put(pool, ptr);
 }

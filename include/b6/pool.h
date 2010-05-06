@@ -15,37 +15,7 @@
 #include "tree.h"
 #include "list.h"
 #include "deque.h"
-
-struct b6_allocator {
-	const struct b6_allocator_class *klass;
-};
-
-struct b6_allocator_class {
-	void *(*allocate)(struct b6_allocator*, unsigned long);
-	void *(*reallocate)(struct b6_allocator*, void*, unsigned long);
-	void (*release)(struct b6_allocator*, void*);
-};
-
-static __inline void *b6_allocate(struct b6_allocator *self,
-                                  unsigned long size)
-{
-	return self->klass->allocate(self, size);
-}
-
-static __inline void *b6_reallocate(struct b6_allocator *self, void *ptr,
-                                    unsigned long size)
-{
-	return self->klass->reallocate(self, ptr, size);
-}
-
-static __inline void b6_release(struct b6_allocator *self, void *ptr)
-{
-	self->klass->release(self, ptr);
-}
-
-void *allocate_in_pool(struct b6_allocator *, unsigned long);
-void *reallocate_in_pool(struct b6_allocator *, void *, unsigned long);
-void release_in_pool(struct b6_allocator *, void *);
+#include "allocator.h"
 
 /**
  * A memory allocator using cached chunks where it actually allocates objects
