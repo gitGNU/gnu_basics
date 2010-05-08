@@ -115,7 +115,7 @@ static inline struct b6_dref *b6_splay_add_nothread(struct b6_splay *splay,
 {
 	if (b6_splay_empty(splay)) {
 		struct b6_dref *top = b6_splay_root(splay);
-		int opp = dir ^ 1;
+		int opp = b6_to_opposite(dir);
 		ref->ref[opp] = top;
 		ref->ref[dir] = top->ref[dir];
 		top->ref[dir] = NULL;
@@ -166,8 +166,8 @@ static inline struct b6_dref *b6_splay_del_nothread(struct b6_splay *splay)
 			goto done;					\
 									\
 		for (res = _cmp(top, _arg); res; top = top->ref[dir]) { \
-			opp = (res >> 1) & 1;				\
-			dir = opp ^ 1;					\
+			opp = b6_to_direction(res);			\
+			dir = b6_to_opposite(opp);			\
 			if (!top->ref[dir])				\
 				break;					\
 									\
@@ -249,11 +249,12 @@ static inline struct b6_dref *b6_splay_walk(const struct b6_splay *splay,
 		if (b6_splay_empty(splay))
 			return dref;
 		else
-			return __b6_splay_dive(b6_splay_root(splay), dir ^ 1);
+			return __b6_splay_dive(b6_splay_root(splay),
+					       b6_to_opposite(dir));
 	else if (__b6_splay_is_thread(dref->ref[dir]))
 		return __b6_splay_from_thread(dref->ref[dir]);
 	else
-		return __b6_splay_dive(dref->ref[dir], dir ^ 1);
+		return __b6_splay_dive(dref->ref[dir], b6_to_opposite(dir));
 }
 
 /**
@@ -286,7 +287,7 @@ static inline struct b6_dref *b6_splay_add(struct b6_splay *splay, int dir,
 					   struct b6_dref *ref)
 {
 	if (!b6_splay_empty(splay)) {
-		int opp = dir ^ 1;
+		int opp = b6_to_opposite(dir);
 		struct b6_dref *top = b6_splay_root(splay);
 		struct b6_dref *tmp = top->ref[dir];
 		ref->ref[opp] = top;
@@ -363,8 +364,8 @@ done:
 			goto done;					\
 									\
 		for (res = _cmp(top, _arg); res; top = top->ref[dir]) { \
-			opp = (res >> 1) & 1;				\
-			dir = opp ^ 1;					\
+			opp = b6_to_direction(res);			\
+			dir = b6_to_opposite(opp);			\
 			if (__b6_splay_is_thread(top->ref[dir]))	\
 				break;					\
 									\

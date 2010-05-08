@@ -6,6 +6,8 @@
 #ifndef B6_REFS_H_
 #define B6_REFS_H_
 
+#include "assert.h"
+
 /**
  * @file refs.h
  *
@@ -53,35 +55,34 @@
 enum { B6_NEXT, B6_PREV };
 
 /**
- * @brief Type definition for functions to be called back when comparing
- * elements in a container.
+ * @brief Get the direction from a comparison result
+ * @param weight -1 or 1 according to previous comparison
+ * @return B6_PREV if weight equal -1 or B6_NEXT if weight equals 1
  */
-typedef int (*b6_ref_compare_t)(const void *ref1, const void *ref2);
+static inline int b6_to_direction(int weight)
+{
+	int dir;
+	b6_precond(weight == -1 || weight == 1);
+	dir = (weight >> 1) & 1;
+	b6_precond((weight == 1 && dir == B6_NEXT) ||
+		   (weight == -1 && dir == B6_PREV));
+	return dir;
+}
 
 /**
- * @brief Default function for comparing item based on their address
- * @return 0 if both elements equal, -1 if the element a is smaller than
- * b and 1 on the contrary.
+ * @brief Get the opposite direction
+ * @param dir direction to get the opposite from
+ * @return the opposite
  */
-extern int b6_default_compare(const void *a, const void *b);
-
-/**
- * @brief Type definition for functions to be called back when searching
- * containers
- *
- * It is insured that the function is never called with the head or tail
- * reference of the queue. Thus, it is safe to dereference the reference given
- * as parameter.
- *
- * @param ref reference to check
- * @param arg opaque data specified along with this function pointer
- * @return for sequential containers, boolean value according to whether the
- * reference matches or not
- * @return for associative containers, -1 if the element is smaller than
- * expected, 1 if the element is greater than expected and 0 if the element
- * equals what is expected.
- */
-typedef int (*b6_ref_examine_t)(const void *ref, void *arg);
+static inline int b6_to_opposite(int dir)
+{
+	int opp;
+	b6_precond(dir == B6_NEXT || dir == B6_PREV);
+	opp = dir ^ 1;
+	b6_postcond((dir == B6_NEXT && opp == B6_PREV) ||
+		    (opp == B6_NEXT && dir == B6_PREV));
+	return opp;
+}
 
 /**
  * @brief Single reference

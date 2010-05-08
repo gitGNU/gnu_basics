@@ -5,38 +5,6 @@
 
 #include "b6/tree.h"
 
-static inline int is_direction(int direction)
-{
-	return direction == B6_PREV || direction == B6_NEXT;
-}
-
-static inline int to_direction(int weight)
-{
-	int direction;
-
-	b6_precond(weight == -1 || weight == 1);
-
-	direction = (1 - weight) >> 1;
-
-	b6_postcond(direction == ((weight == -1) ? B6_PREV : B6_NEXT));
-
-	return direction;
-}
-
-static inline int to_opposite(int direction)
-{
-	int opposite;
-
-	b6_precond(is_direction(direction));
-
-	opposite = direction ^ 1;
-
-	b6_static_assert((B6_PREV ^ 1) == B6_NEXT);
-	b6_static_assert(B6_PREV == (B6_NEXT ^ 1));
-
-	return opposite;
-}
-
 static inline int get_tag(const struct b6_tref *tref)
 {
 	return (unsigned long int)tref->top & 3;
@@ -50,7 +18,6 @@ static inline struct b6_tref *get_top(const struct b6_tref *tref)
 static inline int set_tag(struct b6_tref *tref, int tag)
 {
 	struct b6_tref *top = get_top(tref);
-	b6_precond(tag >= 0 && tag <= 3);
 	tref->top = (struct b6_tref*)((unsigned long int)top | tag);
 	return tag;
 }
@@ -58,7 +25,6 @@ static inline int set_tag(struct b6_tref *tref, int tag)
 static inline struct b6_tref *set_top(struct b6_tref *tref, struct b6_tref *top)
 {
 	unsigned long int tag = get_tag(tref);
-	b6_precond(!((unsigned long int)top & 3));
 	tref->top = (struct b6_tref*)((unsigned long int)top | tag);
 	return top;
 }
@@ -72,20 +38,10 @@ static inline void swp_tag_top(struct b6_tref *a, struct b6_tref *b)
 
 static void rotate(struct b6_tref *r, int dir, int opp)
 {
-	struct b6_tref *p, *q, *t;
-
-	b6_precond(r);
-	b6_precond(is_direction(opp));
-	p = r->ref[opp];
-
-	b6_precond(to_opposite(opp) == dir);
-	b6_precond(p);
-	q = p->ref[dir];
-
+	struct b6_tref *p = r->ref[opp], *q = p->ref[dir], *t = get_top(r);
 	if (p->ref[dir])
 		set_top(q, r);
 	r->ref[opp] = q;
-	t = get_top(r);
 	set_top(p, t);
 	t->ref[t->ref[B6_NEXT] == r ? B6_NEXT : B6_PREV] = p;
 	set_top(r, p);
@@ -122,7 +78,7 @@ static struct b6_tref *remove(struct b6_tref **top, int *dir)
 	}
 
 	direction = !get_tag(ref);
-	opposite = to_opposite(direction);
+	opposite = b6_to_opposite(direction);
 
 	child = ref->ref[opposite];
 	if (!child->ref[direction]) {
@@ -220,34 +176,19 @@ static inline int set_avl_bal(struct b6_tref *tref, int bal)
  */
 static int rebalance_avl(struct b6_tref *r, int opp)
 {
-	int dir, weight, change;
-	struct b6_tref *p;
-
-	b6_precond(r != NULL);
-	b6_precond(is_direction(opp));
-
-	dir = to_opposite(opp);
-	weight = avl_weight(dir);
-	p = r->ref[opp];
-
-	b6_precond(p != NULL);
-	change = get_avl_bal(p);
+	struct b6_tref *p = r->ref[opp];
+	int change = get_avl_bal(p);
+	int dir = b6_to_opposite(opp);
+	int weight = avl_weight(dir);
 
 	if (change == weight) {
-		struct b6_tref *q;
-		int bal;
-
-		q = p->ref[dir];
-		b6_precond(q);
-
-		bal = get_avl_bal(q);
+		struct b6_tref *q = p->ref[dir];
+		int bal = get_avl_bal(q);
 		set_avl_bal(r, -(((bal - weight) >> 1) & bal));
 		set_avl_bal(p, -(((bal + weight) >> 1) & bal));
 		b6_assert(get_avl_bal(r) == ((bal == -weight) ? weight : 0));
 		b6_assert(get_avl_bal(p) == ((bal == weight) ? -weight : 0));
-
 		set_avl_bal(q, 0);
-
 		rotate(r->ref[opp], opp, dir);
 	} else
 		set_avl_bal(r, -set_avl_bal(p, change + weight));
@@ -291,7 +232,7 @@ static void b6_tree_avl_add(struct b6_tref *top, int dir, struct b6_tref *ref)
 		if (old_bal) {
 			new_bal /= 2;
 			set_avl_bal(ref, new_bal);
-			rebalance_avl(ref, to_direction(new_bal));
+			rebalance_avl(ref, b6_to_direction(new_bal));
 			break;
 		}
 
@@ -333,7 +274,7 @@ static struct b6_tref *b6_tree_avl_del(struct b6_tref *top, int dir)
 
 		new_bal /= 2;
 		set_avl_bal(ref, new_bal);
-		if (new_bal && !rebalance_avl(ref, to_direction(new_bal)))
+		if (new_bal && !rebalance_avl(ref, b6_to_direction(new_bal)))
 			break;
 	}
 
@@ -491,7 +432,7 @@ static void b6_tree_rb_add(struct b6_tref *top, int dir, struct b6_tref *ref)
 
 	while (!is_black(top)) {
 		int direction = elder->ref[B6_NEXT] == top ? B6_NEXT : B6_PREV;
-		int opposite = to_opposite(direction);
+		int opposite = b6_to_opposite(direction);
 		struct b6_tref *uncle = elder->ref[opposite];
 
 		if (is_red(uncle)) {
@@ -582,7 +523,7 @@ static struct b6_tref *b6_tree_rb_del(struct b6_tref *top, int dir)
 	do {
 		struct b6_tref *elder;
 		int opp_is_red;
-		int opp = to_opposite(dir);
+		int opp = b6_to_opposite(dir);
 		struct b6_tref *sibling = top->ref[opp];
 
 		b6_assert(sibling);
@@ -709,14 +650,14 @@ struct b6_tref *__b6_tree_walk(const struct b6_tref *ref, int dir)
 	int opp;
 
 	if (!get_top(ref)) {
-		for (tmp = ref->ref[0], opp = to_opposite(dir); tmp;
+		for (tmp = ref->ref[0], opp = b6_to_opposite(dir); tmp;
 		     ref = tmp, tmp = tmp->ref[opp]);
 		goto job_done;
 	}
 
 	if ((tmp = ref->ref[dir])) {
-		for (opp = to_opposite(dir), ref = tmp; (tmp = ref->ref[opp]);
-		     ref = tmp);
+		for (opp = b6_to_opposite(dir), ref = tmp;
+		     (tmp = ref->ref[opp]); ref = tmp);
 		goto job_done;
 	}
 
