@@ -15,7 +15,9 @@ static int splay_cmp(const void *ref1, const void *ref2)
 static inline int do_search(struct b6_splay *splay, int *direction,
 			    struct b6_dref *dref)
 {
-	return b6_splay_search(splay, *direction, splay_cmp, dref);
+	int res;
+	res = b6_splay_search(splay, *direction, splay_cmp, dref);
+	return res;
 }
 
 
@@ -38,7 +40,7 @@ static inline int do_del(struct b6_splay *splay, struct b6_dref *ref)
 static void do_dbg(struct b6_dref *ref)
 {
 	printf("%p", ref);
-	if (!b6_splay_is_thread(ref)) {
+	if (!__b6_splay_is_thread(ref)) {
 		struct node *node = b6_cast_of(ref, struct node, dref);
 		printf("[%u](", node->val);
 		do_dbg(ref->ref[0]);
