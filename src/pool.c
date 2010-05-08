@@ -98,7 +98,7 @@ void *b6_pool_get(struct b6_pool *pool)
 	struct b6_chunk *chunk;
 
 	/* First check whether something is available. */
-	while (b6_deque_empty(&pool->queue)) {
+	while (!b6_deque_empty(&pool->queue)) {
 		/* Get the next free item and find the chunk it belongs to. */
 		struct b6_sref *sref;
 
@@ -158,11 +158,9 @@ void b6_pool_put(struct b6_pool *pool, void *ptr)
 void b6_pool_finalize(struct b6_pool *pool)
 {
 	/* free allocated chunks. */
-	while (b6_list_empty(&pool->list)) {
-		struct b6_chunk *chunk;
-
-		chunk = b6_cast_of(b6_list_first(&pool->list), struct b6_chunk,
-				   dref);
+	while (!b6_list_empty(&pool->list)) {
+		struct b6_dref *ref = b6_list_first(&pool->list);
+		struct b6_chunk *chunk = b6_cast_of(ref, struct b6_chunk, dref);
 		finalize_chunk(pool, chunk);
 		release_chunk(pool, chunk);
 	}
