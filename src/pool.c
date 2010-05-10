@@ -40,7 +40,7 @@ static void finalize_chunk(struct b6_pool *pool, struct b6_chunk *chunk)
 	if (chunk == pool->curr)
 		pool->curr = NULL;
 
-	b6_list_del(&pool->list, &chunk->dref);
+	b6_list_del(&chunk->dref);
 
 	b6_tree_search(&pool->tree, ref, top, dir) {
 		char *ptr = (char *)b6_cast_of(ref, struct b6_chunk, tref);

@@ -63,7 +63,7 @@ static int add_null()
 	retval = setjmp(env);
 	if (!retval) {
 		test_handler = &env;
-		b6_list_add(&list, b6_list_tail(&list), NULL);
+		b6_list_add(b6_list_tail(&list), NULL);
 	}
 
 	return retval;
@@ -78,7 +78,7 @@ static int add()
 	int i;
 
 	for (i = 0, iter = b6_list_tail(&list); i < b6_card_of(dref); i += 1) {
-		iter = b6_list_add(&list, iter, &dref[i]);
+		iter = b6_list_add(iter, &dref[i]);
 
 		if (iter != &dref[i])
 			return 0;
@@ -87,7 +87,7 @@ static int add()
 			return 0;
 	}
 
-	iter = b6_list_add(&list, &dref[0], &temp);
+	iter = b6_list_add(&dref[0], &temp);
 
 	if (iter != &temp)
 		return 0;
@@ -147,7 +147,7 @@ static int del_head()
 	retval = setjmp(env);
 	if (!retval) {
 		test_handler = &env;
-		b6_list_del(&list, b6_list_head(&list));
+		b6_list_del(b6_list_head(&list));
 	}
 
 	return retval;
@@ -162,7 +162,7 @@ static int del_null()
 	retval = setjmp(env);
 	if (!retval) {
 		test_handler = &env;
-		b6_list_del(&list, NULL);
+		b6_list_del(NULL);
 	}
 
 	return retval;
@@ -177,7 +177,7 @@ static int del_tail()
 	retval = setjmp(env);
 	if (!retval) {
 		test_handler = &env;
-		b6_list_del(&list, b6_list_tail(&list));
+		b6_list_del(b6_list_tail(&list));
 	}
 
 	return retval;
@@ -227,7 +227,7 @@ static int del()
 		if (&dref[b6_card_of(dref) - 1] != b6_list_last(&list))
 			return 0;
 
-		if (&dref[i] != b6_list_del(&list, &dref[i]))
+		if (&dref[i] != b6_list_del(&dref[i]))
 			return 0;
 	}
 
@@ -275,7 +275,7 @@ static int walk()
 			return 0;
 
 	for (i = 0, iter = b6_list_first(&list); iter != b6_list_tail(&list);
-	     iter = b6_list_walk(&list, iter, B6_NEXT), i += 1)
+	     iter = b6_list_walk(iter, B6_NEXT), i += 1)
 		if (iter != &dref[i])
 			return 0;
 
@@ -283,7 +283,7 @@ static int walk()
 		return 0;
 
 	for (i = 0, iter = b6_list_last(&list); iter != b6_list_head(&list);
-	     iter = b6_list_walk(&list, iter, B6_PREV), i += 1)
+	     iter = b6_list_walk(iter, B6_PREV), i += 1)
 		if (iter != &dref[b6_card_of(dref) - 1 - i])
 			return 0;
 

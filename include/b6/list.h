@@ -94,19 +94,16 @@ static inline struct b6_dref *b6_list_tail(const struct b6_list *list)
  * @brief Travel a doubly-linked list reference per reference
  * @ingroup list
  * @complexity O(1)
- * @param list pointer to the doubly-linked list
  * @param dref reference to walk from
  * @param direction B6_PREV or B6_NEXT to get the previous or next reference
  * respectively
  * @return NULL when going out of range or the next or previous reference in
  * the sequence
  */
-static inline struct b6_dref *b6_list_walk(const struct b6_list *list,
-                                           const struct b6_dref *dref,
+static inline struct b6_dref *b6_list_walk(const struct b6_dref *dref,
                                            int direction)
 {
 	b6_precond((unsigned)direction < b6_card_of(dref->ref));
-	b6_precond(list);
 	b6_precond(dref);
 
 	return (struct b6_dref *)dref->ref[direction];
@@ -122,7 +119,7 @@ static inline struct b6_dref *b6_list_walk(const struct b6_list *list,
  */
 static inline struct b6_dref *b6_list_first(const struct b6_list *list)
 {
-	return b6_list_walk(list, b6_list_head(list), B6_NEXT);
+	return b6_list_walk(b6_list_head(list), B6_NEXT);
 }
 
 /**
@@ -135,7 +132,7 @@ static inline struct b6_dref *b6_list_first(const struct b6_list *list)
  */
 static inline struct b6_dref *b6_list_last(const struct b6_list *list)
 {
-	return b6_list_walk(list, b6_list_tail(list), B6_PREV);
+	return b6_list_walk(b6_list_tail(list), B6_PREV);
 }
 
 /**
@@ -155,16 +152,14 @@ static inline int b6_list_empty(const struct b6_list *list)
  * @brief Insert a new element before a reference in the doubly-linked list
  * @ingroup list
  * @complexity O(1)
- * @param list pointer to the doubly-linked list
  * @param next reference in the list
  * @param dref reference of the element to insert
  * @return dref
  */
-static inline struct b6_dref *b6_list_add(struct b6_list *list,
-                                          struct b6_dref *next,
+static inline struct b6_dref *b6_list_add(struct b6_dref *next,
                                           struct b6_dref *dref)
 {
-	struct b6_dref *prev = b6_list_walk(list, next, B6_PREV);
+	struct b6_dref *prev = b6_list_walk(next, B6_PREV);
 
 	b6_precond(prev);
 	prev->ref[B6_NEXT] = dref;
@@ -185,20 +180,16 @@ static inline struct b6_dref *b6_list_add(struct b6_list *list,
  * doubly-linked list.
  *
  * @complexity O(1)
- * @param list pointer to the doubly-linked list
  * @param dref pointer to the reference in the list
  * @return dref
  */
-static inline struct b6_dref *b6_list_del(struct b6_list *list,
-                                          struct b6_dref *dref)
+static inline struct b6_dref *b6_list_del(struct b6_dref *dref)
 {
-	struct b6_dref *prev = b6_list_walk(list, dref, B6_PREV);
-	struct b6_dref *next = b6_list_walk(list, dref, B6_NEXT);
+	struct b6_dref *prev = b6_list_walk(dref, B6_PREV);
+	struct b6_dref *next = b6_list_walk(dref, B6_NEXT);
 
 	b6_precond(prev);
 	b6_precond(next);
-	b6_precond(dref != b6_list_head(list));
-	b6_precond(dref != b6_list_tail(list));
 
 	prev->ref[B6_NEXT] = next;
 	next->ref[B6_PREV] = prev;
@@ -217,7 +208,7 @@ static inline struct b6_dref *b6_list_del(struct b6_list *list,
 static inline struct b6_dref *b6_list_add_first(struct b6_list *list,
                                                 struct b6_dref *dref)
 {
-	return b6_list_add(list, b6_list_first(list), dref);
+	return b6_list_add(b6_list_first(list), dref);
 }
 
 /**
@@ -231,7 +222,7 @@ static inline struct b6_dref *b6_list_add_first(struct b6_list *list,
 static inline struct b6_dref *b6_list_add_last(struct b6_list *list,
                                                struct b6_dref *dref)
 {
-	return b6_list_add(list, b6_list_tail(list), dref);
+	return b6_list_add(b6_list_tail(list), dref);
 }
 
 /**
@@ -243,7 +234,7 @@ static inline struct b6_dref *b6_list_add_last(struct b6_list *list,
  */
 static inline struct b6_dref *b6_list_del_first(struct b6_list *list)
 {
-	return b6_list_del(list, b6_list_first(list));
+	return b6_list_del(b6_list_first(list));
 }
 
 /**
@@ -256,7 +247,7 @@ static inline struct b6_dref *b6_list_del_first(struct b6_list *list)
  */
 static inline struct b6_dref *b6_list_del_last(struct b6_list *list)
 {
-	return b6_list_del(list,  b6_list_last(list));
+	return b6_list_del(b6_list_last(list));
 }
 
 #endif /* B6_LIST_H_ */
