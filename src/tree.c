@@ -294,7 +294,7 @@ static int __b6_tree_avl_chk(struct b6_tref **tref)
 	struct b6_tref *curr, *prev, *next;
 
 	curr = *tref;
-	if ((prev = b6_tree_ref(curr, B6_PREV))) {
+	if ((prev = b6_tree_child(curr, B6_PREV))) {
 		*tref = prev;
 		h1 = __b6_tree_avl_chk(tref);
 		if (h1 < 0)
@@ -302,7 +302,7 @@ static int __b6_tree_avl_chk(struct b6_tref **tref)
 	} else
 		h1 = 0;
 
-	if ((next = b6_tree_ref(curr, B6_NEXT))) {
+	if ((next = b6_tree_child(curr, B6_NEXT))) {
 		*tref = next;
 		h2 = __b6_tree_avl_chk(tref);
 		if (h2 < 0)
@@ -584,13 +584,13 @@ static int __b6_tree_rb_chk(struct b6_tref **tref)
 	int h;
 
 	curr = *tref;
-	if ((prev = b6_tree_ref(curr, B6_PREV))) {
+	if ((prev = b6_tree_child(curr, B6_PREV))) {
 		*tref = prev;
 		h = __b6_tree_rb_chk(tref);
 		if (h < 0)
 			return h;
 
-		if ((next = b6_tree_ref(curr, B6_NEXT))) {
+		if ((next = b6_tree_child(curr, B6_NEXT))) {
 			int tmp;
 			*tref = next;
 			tmp = __b6_tree_rb_chk(tref);
@@ -600,7 +600,7 @@ static int __b6_tree_rb_chk(struct b6_tref **tref)
 			if (tmp != h)
 				return -1;
 		}
-	} else if ((next = b6_tree_ref(curr, B6_NEXT))) {
+	} else if ((next = b6_tree_child(curr, B6_NEXT))) {
 		*tref = next;
 		h = __b6_tree_rb_chk(tref);
 		if (h < 0)
@@ -644,30 +644,26 @@ const struct b6_tree_ops b6_tree_rb_ops = {
  * child. Otherwise, the next node is the first elder when walking the tree
  * backwards to the root, which child is in the opposite direction.
  */
+struct b6_tref *__b6_tree_dive(const struct b6_tref *ref, int dir)
+{
+	struct b6_tref *child;
+
+	while ((child = b6_tree_child(ref, dir)))
+		ref = child;
+
+	return (struct b6_tref *)ref;
+}
+
 struct b6_tref *__b6_tree_walk(const struct b6_tref *ref, int dir)
 {
-	struct b6_tref *tmp;
-	int opp;
+	struct b6_tref *top;
 
-	if (!get_top(ref)) {
-		for (tmp = ref->ref[0], opp = b6_to_opposite(dir); tmp;
-		     ref = tmp, tmp = tmp->ref[opp]);
-		goto job_done;
-	}
-
-	if ((tmp = ref->ref[dir])) {
-		for (opp = b6_to_opposite(dir), ref = tmp;
-		     (tmp = ref->ref[opp]); ref = tmp);
-		goto job_done;
-	}
-
-	while ((tmp = get_top(ref))) {
-		opp = tmp->ref[dir] != ref;
-		ref = tmp;
+	while ((top = get_top(ref))) {
+		int opp = top->ref[dir] != ref;
+		ref = top;
 		if (opp)
 			break;
 	}
 
-job_done:
 	return (struct b6_tref *)ref;
 }

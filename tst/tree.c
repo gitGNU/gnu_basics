@@ -1,49 +1,22 @@
-#include "node.h"
+#include "test.h"
 
-#include "b6/deque.h"
+#include "b6/list.h"
 #include "b6/tree.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <pthread.h>
 
-static void b6_tree_debug_helper(struct b6_tree *tree, struct b6_tref *ref)
+struct node {
+	struct b6_tref tref;
+	struct b6_dref dref;
+};
+
+static int do_cmp(const struct node *self, const struct node *node)
 {
-	struct node *node;
-
-	printf("<node id='%u'", (unsigned) ref);
-
-	node = b6_container_of(ref, struct node, tref);
-	printf(" label='%d'", node->val);
-
-	printf(" tag='%ld'>", ((long int)(ref->top) & 3) - 1);
-
-	if (ref->ref[B6_PREV])
-		b6_tree_debug_helper(tree, ref->ref[B6_PREV]);
-	else
-		printf("<node id='%u' label='NULL' tag='-1' />",
-		       ((unsigned) ref) + 1);
-
-	if (ref->ref[B6_NEXT])
-		b6_tree_debug_helper(tree, ref->ref[B6_NEXT]);
-	else
-		printf("<node id='%u' label='NULL' tag='-1' />",
-		       ((unsigned) ref) + 3);
-
-	printf("</node>");
-
+	return b6_sign_of((unsigned long int)self - (unsigned long int)node);
 }
-
-void b6_tree_debug(struct b6_tree *tree)
-{
-	printf("<tree>");
-	b6_tree_debug_helper(tree, tree->tref.ref[0]);
-	printf("</tree>");
-	puts("");
-}
-
-typedef struct b6_tref *(*add_t)(struct b6_tref*, int, struct b6_tref*);
-typedef struct b6_tref *(*del_t)(struct b6_tref*, int);
-typedef int(*chk_t)(const struct b6_tree *, struct b6_tref**);
 
 static struct b6_tref *do_add(struct b6_tree *tree, struct b6_tref *tref)
 {
@@ -53,12 +26,12 @@ static struct b6_tref *do_add(struct b6_tree *tree, struct b6_tref *tref)
 
 	b6_tree_search(tree, ref, top, dir) {
 		struct node *n2 = b6_cast_of(ref, struct node, tref);
-		int result = node_cmp(n1, n2);
+		int result = do_cmp(n2, n1);
 
 		if (b6_unlikely(!result))
 			return ref;
 
-		dir = result == -1 ? B6_NEXT : B6_PREV;
+		dir = b6_to_direction(result);
 	}
 
 	return b6_tree_add(tree, top, dir, tref);
@@ -66,136 +39,211 @@ static struct b6_tref *do_add(struct b6_tree *tree, struct b6_tref *tref)
 
 static struct b6_tref *do_del(struct b6_tree *tree, struct b6_tref *tref)
 {
-	struct b6_tref *top, *ref;
 	int dir;
-	struct node *n1 = b6_cast_of(tref, struct node, tref);
-
-	b6_tree_search(tree, ref, top, dir) {
-		struct node *n2 = b6_cast_of(ref, struct node, tref);
-		int result = node_cmp(n1, n2);
-
-		if (b6_unlikely(!result))
-			return b6_tree_del(tree, top, dir);
-
-		dir = result == -1 ? B6_NEXT : B6_PREV;
-	}
-
-	return NULL;
+	struct b6_tref *top = b6_tree_parent(tref, &dir);
+	return b6_tree_del(tree, top, dir);
 }
 
-static int do_tree_test(const struct b6_tree_ops *ops)
+static int always_fails(void)
 {
-	int retval;
-	struct node nodes[256];
+	return 0;
+}
+
+static int first_is_tail_when_empty(void)
+{
 	struct b6_tree tree;
-	struct b6_deque deque;
-	unsigned u;
+	struct b6_tref *tref;
 
-	b6_tree_initialize(&tree, ops);
-	b6_deque_initialize(&deque);
+	b6_tree_initialize(&tree, NULL);
+	tref = b6_tree_first(&tree);
+	return tref == b6_tree_tail(&tree);
+}
 
-	u = rand() % b6_card_of(nodes);
-	while (u--) {
-		struct node *node;
-		struct b6_tref *tref;
+static int last_is_head_when_empty(void)
+{
+	struct b6_tree tree;
+	struct b6_tref *tref;
 
-		node = &nodes[u];
-		node->val = rand() & 65535;
+	b6_tree_initialize(&tree, NULL);
+	tref = b6_tree_last(&tree);
+	return tref == b6_tree_head(&tree);
+}
 
-		tref = do_add(&tree, &node->tref);
-		if (tref == &node->tref) {
-			b6_deque_add_last(&deque, &node->sref);
-			retval = b6_tree_check(&tree, &tref);
-			if (retval < 0)
-				goto bail_out;
-		}
-	}
+static int first_is_smallest(void)
+{
+	struct node *n, nodes[4];
+	struct b6_tree tree;
+	unsigned int u;
 
-	while (!b6_deque_empty(&deque)) {
-		struct node *node;
-		struct b6_sref *sref;
-		struct b6_tref *tref;
+	b6_tree_initialize(&tree, &b6_tree_avl_ops);
 
-		sref = b6_deque_del_first(&deque);
-		node = b6_container_of(sref, struct node, sref);
-		tref = do_del(&tree, &node->tref);
-		b6_assert(tref == &node->tref);
-		retval = b6_tree_check(&tree, &tref);
-		if (retval < 0)
+	for (u = b6_card_of(nodes), n = &nodes[0]; u--;
+	     do_add(&tree, &(n++)->tref));
+
+	return b6_tree_first(&tree) == &nodes[0].tref;
+}
+
+static int last_is_greatest(void)
+{
+	struct node *n, nodes[4];
+	struct b6_tree tree;
+	unsigned int u;
+
+	b6_tree_initialize(&tree, &b6_tree_avl_ops);
+
+	for (u = b6_card_of(nodes), n = &nodes[0]; u--;
+	     do_add(&tree, &(n++)->tref));
+
+	return b6_tree_last(&tree) == &nodes[b6_card_of(nodes) - 1].tref;
+}
+
+static int walk_next(void)
+{
+	struct node *n, nodes[4];
+	struct b6_tree tree;
+	struct b6_tref *tref;
+	unsigned int u;
+	int retval = 0;
+
+	b6_tree_initialize(&tree, &b6_tree_avl_ops);
+
+	for (u = b6_card_of(nodes), n = &nodes[0]; u--;
+	     do_add(&tree, &(n++)->tref));
+
+	for (u = 0, tref = b6_tree_first(&tree); u < b6_card_of(nodes); u++) {
+		retval = (tref != b6_tree_tail(&tree));
+		if (!retval)
 			goto bail_out;
+		retval = (tref == &nodes[u].tref);
+		if (!retval)
+			goto bail_out;
+		tref = b6_tree_walk(&tree, tref, B6_NEXT);
 	}
+	retval = (tref == b6_tree_tail(&tree));
 
-	retval = 0;
 bail_out:
 	return retval;
 }
 
-static inline int do_walk_test(void)
+static int walk_prev(void)
 {
+	struct node *n, nodes[4];
 	struct b6_tree tree;
 	struct b6_tref *tref;
-	struct node nodes[3];
-	int i, dir;
+	unsigned int u;
+	int retval = 0;
 
 	b6_tree_initialize(&tree, &b6_tree_avl_ops);
 
+	for (u = b6_card_of(nodes), n = &nodes[0]; u--;
+	     do_add(&tree, &(n++)->tref));
 
-	for (tref = b6_tree_first(&tree); tref != b6_tree_tail(&tree);
-	     tref = b6_tree_walk(tref, B6_NEXT))
-		printf("%p\n", tref);
+	for (u = b6_card_of(nodes), tref = b6_tree_last(&tree);
+	     tref != b6_tree_head(&tree);
+	     tref = b6_tree_walk(&tree, tref, B6_PREV))
+		if (!(retval = (tref == &nodes[--u].tref)))
+			break;
 
-	for (tref = b6_tree_last(&tree); tref != b6_tree_head(&tree);
-	     tref = b6_tree_walk(tref, B6_PREV))
-		printf("%p\n", tref);
 
-	for (i = 0; i < b6_card_of(nodes); i += 1)
-		nodes[i].val = i;
-
-	b6_tree_top(&tree, &tref, &dir);
-	tref = b6_tree_add(&tree, tref, dir, &nodes[0].tref);
-	tref = b6_tree_add(&tree, tref, B6_NEXT, &nodes[1].tref);
-	tref = b6_tree_add(&tree, tref, B6_NEXT, &nodes[2].tref);
-
-	for (tref = b6_tree_first(&tree); tref != b6_tree_tail(&tree);
-	     tref = b6_tree_walk(tref, B6_NEXT)) {
-		struct node *node = b6_cast_of(tref, struct node, tref);
-		printf("%d ", node->val);
+	for (u = b6_card_of(nodes), tref = b6_tree_last(&tree); u--; ) {
+		retval = (tref != b6_tree_head(&tree));
+		if (!retval)
+			goto bail_out;
+		retval = (tref == &nodes[u].tref);
+		if (!retval)
+			goto bail_out;
+		tref = b6_tree_walk(&tree, tref, B6_PREV);
 	}
-	puts("");
+	retval = (tref == b6_tree_head(&tree));
 
-	for (tref = b6_tree_last(&tree); tref != b6_tree_head(&tree);
-	     tref = b6_tree_walk(tref, B6_PREV)) {
-		struct node *node = b6_cast_of(tref, struct node, tref);
-		printf("%d ", node->val);
+bail_out:
+	return retval;
+}
+
+static int thread_should_exit = 0;
+
+static void *endurance_thread(void *arg)
+{
+	struct node *n, nodes[256];
+	struct b6_tree tree;
+	struct b6_list list;
+	struct b6_tref *dbg;
+	unsigned int u, ilen, olen;
+	int retval;
+
+	b6_tree_initialize(&tree, arg);
+	b6_list_initialize(&list);
+
+	for (u = b6_card_of(nodes), n = &nodes[u]; u--; )
+		b6_list_add_last(&list, &(--n)->dref);
+	olen = b6_card_of(nodes);
+	ilen = 0;
+
+	while (!thread_should_exit) {
+		for (u = olen ? rand() % olen : 0; u--; olen -= 1, ilen += 1) {
+			struct b6_dref *dref = b6_list_head(&list);
+			int dir = rand() & 1;
+			unsigned int v = rand() % olen;
+			do dref = b6_list_walk(dref, dir); while (v--);
+			b6_list_del(dref);
+			n = b6_cast_of(dref, struct node, dref);
+			do_add(&tree, &n->tref);
+			if (0 > (retval = b6_tree_check(&tree, &dbg)))
+				goto bail_out;
+		}
+
+		for (u = ilen ? rand() % ilen : 0; u--; ilen -= 1, olen += 1) {
+			struct b6_tref *tref = b6_tree_head(&tree);
+			int dir = rand() & 1;
+			unsigned int v = rand() % ilen;
+			do tref = b6_tree_walk(&tree, tref, dir); while (v--);
+			do_del(&tree, tref);
+			if (0 > (retval = b6_tree_check(&tree, &dbg)))
+				goto bail_out;
+			n = b6_cast_of(tref, struct node, tref);
+			b6_list_add_last(&list, &n->dref);
+		}
 	}
-	puts("");
 
-	return 0;
+	return (void *)1;
+bail_out:
+	return (void *)0;
+}
+
+static int endurance()
+{
+	void *args[] = { (void *)&b6_tree_avl_ops, (void *)&b6_tree_rb_ops };
+	pthread_t threads[b6_card_of(args)];
+	void *retvals[b6_card_of(args)];
+	int i, retval;
+
+	for (i = b6_card_of(threads); i--;
+	     pthread_create(&threads[i], NULL, endurance_thread, args[i]));
+
+	sleep(5 * 60);
+	thread_should_exit = 1;
+
+	for (i = b6_card_of(threads); i--;
+	     pthread_join(threads[i], &retvals[i]));
+
+	for (retval = 1, i = b6_card_of(threads); i--;
+	     retval &= (int)retvals[i]);
+
+	return retval;
 }
 
 int main(int argc, const char *argv[])
 {
-	int retval;
+	test_init();
+	test_exec(always_fails,);
+	test_exec(first_is_tail_when_empty,);
+	test_exec(last_is_head_when_empty,);
+	test_exec(first_is_smallest,);
+	test_exec(last_is_greatest,);
+	test_exec(walk_next,);
+	test_exec(walk_prev,);
+	test_exec(endurance,);
+	test_exit();
 
-	(void)do_tree_test;
-
-	retval = do_walk_test();
-	if (retval < 0)
-		goto bail_out;
-
-	for (;;) {
-		retval = do_tree_test(&b6_tree_avl_ops);
-		if (retval < 0) {
-			printf("avl: %d\n", retval);
-			break;
-		}
-		retval = do_tree_test(&b6_tree_rb_ops);
-		if (retval < 0) {
-			printf("r-b: %d\n", retval);
-			break;
-		}
-	}
-
-bail_out:
-	return retval;
+	return 0;
 }

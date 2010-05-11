@@ -92,11 +92,22 @@ static inline void b6_tree_top(const struct b6_tree *tree,
 	*dir = 0;
 }
 
-static inline struct b6_tref *b6_tree_ref(const struct b6_tref *top, int dir)
+static inline struct b6_tref *b6_tree_child(const struct b6_tref *top, int dir)
 {
 	b6_precond(top);
 	b6_precond((unsigned int)dir < b6_card_of(top->ref));
 	return top->ref[dir];
+}
+
+static inline struct b6_tref *b6_tree_parent(const struct b6_tref *tref,
+					     int *dir)
+{
+	struct b6_tref *top;
+	b6_precond(tref);
+	top = (struct b6_tref *)((unsigned long int)tref->top & ~3);
+	if (dir)
+		*dir = b6_tree_child(top, B6_NEXT) == tref ? B6_NEXT : B6_PREV;
+	return top;
 }
 
 static inline struct b6_tref *b6_tree_root(const struct b6_tree *tree)
@@ -104,13 +115,13 @@ static inline struct b6_tref *b6_tree_root(const struct b6_tree *tree)
 	struct b6_tref *top;
 	int dir;
 	b6_tree_top(tree, &top, &dir);
-	return b6_tree_ref(top, dir);
+	return b6_tree_child(top, dir);
 }
 
 #define b6_tree_search(tree, ref, top, dir)				\
 	b6_precond(tree);						\
 	for (b6_tree_top(tree, &top, &dir);				\
-	     (ref = b6_tree_ref(top, dir));				\
+	     (ref = b6_tree_child(top, dir));				\
 	     top = ref)
 
 /**
@@ -126,22 +137,35 @@ static inline int b6_tree_empty(const struct b6_tree *tree)
 }
 
 extern struct b6_tref *__b6_tree_walk(const struct b6_tref *ref, int dir);
+extern struct b6_tref *__b6_tree_dive(const struct b6_tref *ref, int dir);
 
-static inline struct b6_tref *b6_tree_walk(const struct b6_tref *ref, int dir)
+static inline struct b6_tref *b6_tree_walk(const struct b6_tree *tree,
+					   const struct b6_tref *tref, int dir)
 {
-	b6_precond(ref);
-	b6_precond((unsigned int)dir < b6_card_of(ref->ref));
-	return __b6_tree_walk(ref, dir);
+	struct b6_tref *child, *head = b6_tree_head(tree);
+
+	b6_precond(tref);
+	b6_precond((unsigned int)dir < b6_card_of(tref->ref));
+
+	if (b6_likely(tref != head))
+		if ((child = b6_tree_child(tref, dir)))
+			return __b6_tree_dive(child, b6_to_opposite(dir));
+		else
+			return __b6_tree_walk(tref, dir);
+	else if (!b6_tree_empty(tree))
+		return __b6_tree_dive(b6_tree_root(tree), b6_to_opposite(dir));
+	else
+		return head;
 }
 
 static inline struct b6_tref *b6_tree_first(const struct b6_tree *tree)
 {
-	return __b6_tree_walk(b6_tree_head(tree), B6_NEXT);
+	return b6_tree_walk(tree, b6_tree_head(tree), B6_NEXT);
 }
 
 static inline struct b6_tref *b6_tree_last(const struct b6_tree *tree)
 {
-	return __b6_tree_walk(b6_tree_tail(tree), B6_PREV);
+	return b6_tree_walk(tree, b6_tree_tail(tree), B6_PREV);
 }
 
 static inline struct b6_tref *b6_tree_add(struct b6_tree *tree,
@@ -169,7 +193,7 @@ static inline int b6_tree_check(const struct b6_tree *tree,
 				struct b6_tref **tref)
 {
 	b6_precond(tree);
-	b6_precond(!tref || *tref);
+	b6_precond(tref);
 	return tree->ops->chk(tree, tref);
 }
 
