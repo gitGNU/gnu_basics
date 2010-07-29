@@ -52,14 +52,15 @@ static inline int b6_vector_length(const struct b6_vector *self)
 	return self->length;
 }
 
-static inline const void *b6_vector_get_const(const struct b6_vector *self,
-					      unsigned long int index,
-					      unsigned long int n)
+static inline void *b6_vector_get(const struct b6_vector *self,
+				  unsigned long int index, unsigned long int n)
 {
 	unsigned long long int offset;
 
 	b6_precond(self);
-	b6_precond(index < self->length);
+
+	if (index >= self->length)
+	  return NULL;
 
 	if (n > self->length - index)
 		return NULL;
@@ -69,13 +70,6 @@ static inline const void *b6_vector_get_const(const struct b6_vector *self,
 		return NULL;
 
 	return &self->buffer[offset];
-}
-
-static inline void *b6_vector_get(struct b6_vector *self,
-				  unsigned long int index,
-				  unsigned long int n)
-{
-	return (void*)b6_vector_get_const(self, index, n);
 }
 
 extern void *__b6_vector_add(struct b6_vector *self, unsigned long int index,
