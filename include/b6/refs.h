@@ -48,7 +48,6 @@
  * within the container respectively. It is illegal to dereference them.
  *
  * @see b6_sref, b6_dref, b6_tref
- * @see b6_ref_compare_t, b6_ref_examine_t
  * @see deque.h, list.h, vector.h, splay.h, tree.h
  */
 
@@ -108,5 +107,15 @@ struct b6_tref {
 	struct b6_tref *ref[2]; /**< pointers to other references */
 	struct b6_tref *top; /**< pointer to parent reference */
 };
+
+/**
+ * @brief function for comparing two elements
+ * @param l pointer to the left element
+ * @param r pointer to the right element
+ * @retval 0 if l and r are equal
+ * @retval -1 if l is strictly greater than r
+ * @retval 1 if r is strictly greater than l
+ */
+typedef int (*b6_compare_t)(void *l, void *r);
 
 #endif /* B6_REFS_H_ */

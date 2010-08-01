@@ -250,4 +250,64 @@ static inline struct b6_dref *b6_list_del_last(struct b6_list *list)
 	return b6_list_del(b6_list_last(list));
 }
 
+/**
+ * @brief Delete elements from a list and add them before another one
+ * @ingroup list
+ * @complexity O(1)
+ * @pre to is after from
+ * @pre next is not between from and to
+ * @param from first element to move
+ * @param to last element to move
+ * @param next element before which the sequence will be added
+ */
+static inline void b6_list_move(struct b6_dref *from, struct b6_dref *to,
+				struct b6_dref *next)
+{
+	struct b6_dref *before = b6_list_walk(from, B6_PREV);
+	struct b6_dref *after = b6_list_walk(to, B6_NEXT);
+	struct b6_dref *prev = b6_list_walk(next, B6_PREV);
+
+	before->ref[B6_NEXT] = after;
+	after->ref[B6_PREV] = before;
+
+	prev->ref[B6_NEXT] = from;
+	from->ref[B6_PREV] = prev;
+
+	next->ref[B6_PREV] = to;
+	to->ref[B6_NEXT] = next;
+}
+
+/**
+ * @brief calculate the length of a list
+ * @ingroup list
+ * @complexity O(n)
+ * @param list pointer to the list to calculate the length of
+ * @return the length of the list
+ */
+extern unsigned long int b6_list_length(const struct b6_list *list);
+
+extern void __b6_list_msort(struct b6_list *list, b6_compare_t comp,
+			    unsigned long int length);
+
+/**
+ * @brief Sort a list using the merge sorting algorithm
+ * @complexity O(n log(n))
+ * @param list pointer to the list to sort
+ * @param comp function to call back for comparing elements of the list
+ */
+static inline void b6_list_msort(struct b6_list *list, b6_compare_t comp)
+{
+	unsigned long int length = b6_list_length(list);
+	if (length > 1)
+		__b6_list_msort(list, comp, length);
+}
+
+/**
+ * @brief Sort a list using the merge sorting algorithm
+ * @complexity O(n log(n))
+ * @param list pointer to the list to sort
+ * @param comp function to call back for comparing elements of the list
+ */
+extern void b6_list_qsort(struct b6_list *list, b6_compare_t comp);
+
 #endif /* B6_LIST_H_ */
