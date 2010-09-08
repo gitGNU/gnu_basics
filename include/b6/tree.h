@@ -24,6 +24,9 @@ struct b6_tree {
 	const struct b6_tree_ops *ops;
 };
 
+#define B6_TREE_INIT(ops) { { { NULL, NULL }, 0 }, ops }
+#define B6_TREE_DEFINE(tree, ops) struct b6_tree tree = B6_TREE_INIT(ops)
+
 struct b6_tree_ops {
 	void (*add)(struct b6_tref *top, int dir, struct b6_tref *ref);
 	struct b6_tref *(*del)(struct b6_tref *top, int dir);

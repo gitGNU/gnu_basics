@@ -35,13 +35,14 @@ struct b6_deque {
 	struct b6_sref *last; /**< latest element or b6_deque::sref if empty */
 };
 
+#define B6_DEQUE_INIT(deque) { { &(deque).sref }, &(deque).sref }
+
 /**
  * @ingroup deque
  * @brief Initialize a deque statically
  * @param deque name of the variable
  */
-#define B6_DEQUE_DEFINE(deque)						\
-	struct b6_deque deque = { { &deque.sref }, &deque.sref }
+#define B6_DEQUE_DEFINE(deque) struct b6_deque deque = B6_DEQUE_INIT(deque)
 
 /**
  * @ingroup deque

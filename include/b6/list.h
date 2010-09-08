@@ -32,13 +32,14 @@ struct b6_list {
 	struct b6_dref dref; /**< sentinel of the list */
 };
 
+#define B6_LIST_INIT(list) { { { &(list).dref, &(list).dref } } }
+
 /**
  * @brief Initialize a list statically
  * @ingroup list
  * @param list name of the variable
  */
-#define B6_LIST_DEFINE(list)					\
-	struct b6_list list = {{{&list.dref, &list.dref}}}
+#define B6_LIST_DEFINE(list) struct b6_list list = B6_LIST_INIT(list)
 
 /**
  * @brief Initialize or clear a doubly-linked list
