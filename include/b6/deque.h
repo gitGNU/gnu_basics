@@ -60,6 +60,26 @@ static inline void b6_deque_initialize(struct b6_deque *deque)
 
 /**
  * @ingroup deque
+ * @brief Exchange the contents of two deques
+ * @complexity O(1)
+ * @param lhs pointer to a doubly-ended queue
+ * @param rhs pointer to a doubly-ended queue
+ */
+static inline void b6_deque_swap(struct b6_deque *lhs, struct b6_deque *rhs)
+{
+	struct b6_sref *sref;
+	sref = lhs->last;
+	lhs->last = rhs->last;
+	rhs->last = sref;
+	sref = lhs->sref.ref;
+	lhs->sref.ref = rhs->sref.ref;
+	rhs->sref.ref = sref;
+	lhs->last->ref = &lhs->sref;
+	rhs->last->ref = &rhs->sref;
+}
+
+/**
+ * @ingroup deque
  * @brief Return the reference of the head of a doubly-ended queue
  *
  * The head reference cannot be dereferenced as it is associated with no
@@ -113,13 +133,13 @@ static inline struct b6_sref *b6_deque_walk(const struct b6_deque *deque,
 {
 	const struct b6_sref *prev;
 
-	b6_precond(deque);
 	b6_precond(curr);
 	b6_precond(direction == B6_PREV || direction == B6_NEXT);
 
 	if (direction == B6_NEXT)
 		return curr->ref;
 
+	b6_precond(deque);
 	if (curr == b6_deque_tail(deque))
 		return deque->last;
 
