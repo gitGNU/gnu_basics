@@ -145,4 +145,7 @@
 #define b6_pure
 #endif
 
+#define b6_ctor(func) __attribute__((constructor)) static void func(void)
+#define b6_dtor(func) __attribute__((destructor)) static void func(void)
+
 #endif /*UTILS_H_*/
