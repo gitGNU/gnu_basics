@@ -188,8 +188,8 @@ static inline struct b6_dref *b6_list_del(struct b6_dref *dref)
 	struct b6_dref *prev = b6_list_walk(dref, B6_PREV);
 	struct b6_dref *next = b6_list_walk(dref, B6_NEXT);
 
-	b6_precond(prev);
-	b6_precond(next);
+	b6_precond(dref != prev);
+	b6_precond(dref != next);
 
 	prev->ref[B6_NEXT] = next;
 	next->ref[B6_PREV] = prev;
