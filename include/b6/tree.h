@@ -122,7 +122,7 @@ static inline struct b6_tref *b6_tree_root(const struct b6_tree *tree)
 }
 
 #define b6_tree_search(tree, ref, top, dir)				\
-	b6_precond(tree);						\
+	b6_precond((tree) != NULL);					\
 	for (b6_tree_top(tree, &top, &dir);				\
 	     (ref = b6_tree_child(top, dir));				\
 	     top = ref)

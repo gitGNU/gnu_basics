@@ -520,7 +520,7 @@ static struct b6_tref *b6_tree_rb_del(struct b6_tref *top, int dir)
 		return ret;
 	}
 
-	do {
+	while (get_top(top)) {
 		struct b6_tref *elder;
 		int opp_is_red;
 		int opp = b6_to_opposite(dir);
@@ -560,7 +560,7 @@ static struct b6_tref *b6_tree_rb_del(struct b6_tref *top, int dir)
 		elder = get_top(top);
 		dir = elder->ref[B6_NEXT] == top ? B6_NEXT : B6_PREV;
 		top = elder;
-	} while (get_top(top));
+	}
 
 	return ret;
 }
