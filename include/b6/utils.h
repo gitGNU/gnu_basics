@@ -16,7 +16,7 @@
  * @param f specifies the name of the field.
  * @return the offset of the field within the type.
  */
-#define b6_offset_of(t, f) (int) &(((t *) 0)->f)
+#define b6_offset_of(t, f) (long int)&(((t*)0)->f)
 
 /**
  * Cast a field of a structure out to the containing structure
@@ -25,7 +25,7 @@
  * @param f specifies the field referenced by p
  * @return a pointer to the variable of type t
  */
-#define b6_cast_of(p, t, f) (t *) (((char *) p) - b6_offset_of(t, f))
+#define b6_cast_of(p, t, f) ((t*)(((char*)p) - b6_offset_of(t, f)))
 #define b6_container_of(p, t, f) b6_cast_of(p, t, f)
 
 /**
