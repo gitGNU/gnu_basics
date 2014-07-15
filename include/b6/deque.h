@@ -347,4 +347,21 @@ static inline struct b6_sref *b6_deque_del_last(struct b6_deque *deque)
 	return b6_deque_del(deque, b6_deque_last(deque));
 }
 
+/**
+ * @ingroup deque
+ * @brief Move the elements of a doubly-ended queue to the end of another.
+ * @complexity O(1)
+ * @param d The doubly-ended queue to extend
+ * @param s The doubly-ended queue to move the elements of
+ */
+static inline void b6_deque_extend(struct b6_deque *d, struct b6_deque *s)
+{
+	if (b6_deque_empty(s))
+		return;
+	b6_deque_last(s)->ref = b6_deque_tail(d);
+	b6_deque_last(d)->ref = b6_deque_first(s);
+	d->last = b6_deque_last(s);
+	b6_deque_initialize(s);
+}
+
 #endif /* B6_DEQUE_H_ */
