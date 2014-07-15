@@ -5,25 +5,15 @@
 
 #include "b6/pool.h"
 
-/** The chunk of the pool which objects are allocated in. */
-struct b6_chunk {
-	struct b6_tref tref; /**< Chunks are organized in a tree. */
-	struct b6_dref dref; /**< Chunks are organized in a list. */
-	unsigned int free; /**< Free bytes remaining in the chunk. */
-	unsigned int used; /**< Allocated objects in the chunk. */
-	unsigned int index; /**< Offset of the 1st free object in the chunk. */
-	unsigned int flag; /**< Whether this chunk is to be deleted. */
-};
-
 static void initialize_chunk(struct b6_pool *pool, struct b6_chunk *chunk)
 {
 	int dir;
 	struct b6_tref *top, *ref;
 
-	chunk->free = pool->chunk_size;
-	chunk->used = 0;
 	chunk->index = sizeof(struct b6_chunk);
-	chunk->flag = 1;
+	chunk->free = pool->chunk_size - chunk->index;
+	chunk->used = 0;
+	chunk->flag = 0;
 
 	b6_list_add_first(&pool->list, &chunk->dref);
 
@@ -46,7 +36,7 @@ static void finalize_chunk(struct b6_pool *pool, struct b6_chunk *chunk)
 		char *ptr = (char *)b6_cast_of(ref, struct b6_chunk, tref);
 		if (ptr < (char *)chunk)
 			dir = B6_NEXT;
-		else if (ptr + pool->chunk_size > (char *)chunk)
+		else if (ptr >= (char *)chunk + pool->chunk_size)
 			dir = B6_PREV;
 		else
 			break;
@@ -59,8 +49,7 @@ static struct b6_chunk *allocate_chunk(struct b6_pool *pool)
 	struct b6_chunk *chunk = pool->free;
 
 	if (chunk == NULL)
-		return b6_allocate(pool->allocator, pool->chunk_size +
-				   sizeof(struct b6_chunk));
+		return b6_allocate(pool->allocator, pool->chunk_size);
 
 	pool->free = NULL;
 
@@ -96,6 +85,7 @@ static struct b6_chunk *find_chunk(struct b6_pool *pool, void *ptr)
 void *b6_pool_get(struct b6_pool *pool)
 {
 	struct b6_chunk *chunk;
+	void *ptr;
 
 	/* First check whether something is available. */
 	while (!b6_deque_empty(&pool->queue)) {
@@ -116,7 +106,7 @@ void *b6_pool_get(struct b6_pool *pool)
 		   delete. We take the opportunity to update the chunk
 		   status. */
 		chunk->free += pool->size;
-		if (chunk->free == pool->chunk_size) {
+		if (chunk->free == pool->chunk_size - sizeof(*chunk)) {
 			finalize_chunk(pool, chunk);
 			release_chunk(pool, chunk);
 		}
@@ -135,11 +125,12 @@ void *b6_pool_get(struct b6_pool *pool)
 	}
 
 	/* Allocate a ptr within the chunk. */
+	ptr = ((char *)pool->curr) + pool->curr->index;
 	pool->curr->used += 1;
 	pool->curr->free -= pool->size;
 	pool->curr->index += pool->size;
 
-	return ((char *)pool->curr) + pool->curr->index;
+	return ptr;
 }
 
 void b6_pool_put(struct b6_pool *pool, void *ptr)
@@ -166,64 +157,63 @@ void b6_pool_finalize(struct b6_pool *pool)
 	}
 
 	/* free possibly cached free chunk. */
-	if (pool->free) {
-		finalize_chunk(pool, pool->free);
-		release_chunk(pool, pool->free);
-	}
+	if (pool->free) release_chunk(pool, pool->free);
 }
 
 static void *b6_pool_allocate(struct b6_allocator *self, unsigned long size)
 {
-	struct b6_pool *pool = b6_cast_of(self, struct b6_pool, allocator);
-	if (size > pool->size)
-		return NULL;
-	return b6_pool_get(pool);
+	struct b6_pool *pool = b6_cast_of(self, struct b6_pool, parent);
+	return size > pool->size ? NULL : b6_pool_get(pool);
 }
 
 static void *b6_pool_reallocate(struct b6_allocator *self, void *ptr,
 				unsigned long size)
 {
-	struct b6_pool *pool = b6_cast_of(self, struct b6_pool, allocator);
-	if (size > pool->size)
-		return NULL;
-	return ptr;
+	struct b6_pool *pool = b6_cast_of(self, struct b6_pool, parent);
+	return size > pool->size ? NULL : ptr;
 }
 
 static void b6_pool_deallocate(struct b6_allocator *self, void *ptr)
 {
-	struct b6_pool *pool = b6_cast_of(self, struct b6_pool, allocator);
+	struct b6_pool *pool = b6_cast_of(self, struct b6_pool, parent);
 	b6_pool_put(pool, ptr);
 }
 
 int b6_pool_initialize(struct b6_pool *pool, struct b6_allocator *allocator,
 		       unsigned size, unsigned chunk_size)
 {
-	const struct b6_allocator_ops ops = {
+	static const struct b6_allocator_ops ops = {
 		.allocate = b6_pool_allocate,
 		.reallocate = b6_pool_reallocate,
 		.deallocate = b6_pool_deallocate,
 	};
 
+	if (!allocator) return -1;
+	if (!size) return -1;
+
 	/* align the size of a ptr to a multiple of queue_node */
 	b6_static_assert(sizeof(struct b6_sref) == sizeof(void*));
 	b6_static_assert(__b6_is_apot(sizeof(void*)));
 	size = (size + (sizeof(void*) - 1)) & ~(sizeof(void*) - 1);
+	b6_assert(!(size % sizeof(struct b6_sref)));
 
 	/* calculate and/or check chunk_size */
 	b6_static_assert(sizeof(struct b6_chunk) < 4096 - sizeof(void*));
 	if (!chunk_size) {
 		for (chunk_size = 4096; chunk_size - sizeof(struct b6_chunk) -
-			     sizeof(void*) < size; chunk_size *= 2)
+		     sizeof(void*) < size; chunk_size *= 2)
 			if (!chunk_size)
 				return -1;
-	} else if (chunk_size < sizeof(void*) + sizeof(struct b6_chunk) ||
-		   chunk_size - sizeof(void*) - sizeof(struct b6_chunk) < size)
+		chunk_size -= sizeof(void*);
+	} else if (chunk_size < sizeof(struct b6_chunk) ||
+		   chunk_size - sizeof(struct b6_chunk) < size)
 		return -1;
-	chunk_size -= sizeof(void*) + sizeof(struct b6_chunk);
 
 	pool->parent.ops = &ops;
 	pool->chunk_size = chunk_size;
 	pool->size = size;
+	pool->curr = NULL;
+	pool->free = NULL;
 	pool->allocator = allocator;
 	b6_deque_initialize(&pool->queue);
 	b6_list_initialize(&pool->list);

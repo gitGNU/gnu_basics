@@ -37,6 +37,16 @@ struct b6_pool {
 	struct b6_allocator *allocator; /**< Underlying allocator. */
 };
 
+/** The chunk of the pool which objects are allocated in. */
+struct b6_chunk {
+	struct b6_tref tref; /**< Chunks are organized in a tree. */
+	struct b6_dref dref; /**< Chunks are organized in a list. */
+	unsigned int free; /**< Free bytes remaining in the chunk. */
+	unsigned int used; /**< Allocated objects in the chunk. */
+	unsigned int index; /**< Offset of the 1st free object in the chunk. */
+	unsigned int flag; /**< Whether this chunk is to be deleted. */
+};
+
 /**
  * Initialize a pool allocator.
  * @param pool specifies the pool to initialize.
