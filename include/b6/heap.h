@@ -21,14 +21,20 @@
  * prioritary one (with regard to how items compare) can be immediately
  * acccessed.
  *
- * This implementation stores pointers to items in an array, which requires an
- * additional memory allocator.
+ * This implementation uses an underlying array of pointers to items. It should
+ * not be mutated while the heap API is used.
  */
 struct b6_heap {
-	struct b6_array array; /**< underlying array */
+	struct b6_array *array; /**< underlying array */
 	b6_compare_t compare; /**< items comparator */
 	void (*set_index)(void*, unsigned long int); /**< item index callback */
 };
+
+
+/**
+ * @internal
+ */
+extern void b6_heap_do_make(struct b6_heap*);
 
 /**
  * @internal
@@ -43,54 +49,54 @@ extern void b6_heap_do_push(struct b6_heap*, void**, unsigned long int);
 /**
  * @internal
  */
-extern void b6_heap_do_bring_on_top(struct b6_heap*, void**, unsigned long int);
+extern void b6_heap_do_boost(struct b6_heap*, void**, unsigned long int);
 
 /**
- * @brief Prepare a heap for being used.
+ * @brief Make a heap out of an array.
  *
  * This function must be called first or results of other functions are
  * unpredicted.
  *
+ * @complexity O(n)
  * @param self specifies the heap to initialize.
- * @param allocator specifies the allocator to use for the underlying array.
+ * @param array specifies the underlying array of elements pointers.
  * @param compare specifies the function to call back to compare to items so as
  * to get the most prioritary one.
  * @param set_index specifies an optional function to call back when an item is
  * assigned an index in the underlying array.
  */
-static inline void b6_heap_initialize(
-	struct b6_heap *self,
-	struct b6_allocator *allocator,
-	b6_compare_t compare,
-	void (*set_index)(void*, unsigned long int))
+static inline void b6_heap_reset(struct b6_heap *self,
+				 struct b6_array *array,
+				 b6_compare_t compare,
+				 void (*set_index)(void*, unsigned long int))
 {
+	b6_assert(array->itemsize == sizeof(void*));
+	self->array = array;
 	self->compare = compare;
 	self->set_index = set_index;
-	b6_array_initialize(&self->array, allocator, sizeof(void*));
+	b6_heap_do_make(self);
 }
 
 /**
- * @brief Remove all items from the heap and release its resources.
- *
- * Once this function has been called, the heap cannot be used anymore until it
- * is initialized again.
- *
- * @param self specifies the heap to finalize.
- */
-static inline void b6_heap_finalize(struct b6_heap *self)
-{
-	b6_array_finalize(&self->array);
-}
-
-/**
- * @brief Check is a heap contains any item.
+ * @brief Return how many items a heap contains.
  * @complexity O(1)
  * @param self specifies the heap.
  * @return how many items the heap contains.
  */
-static inline int b6_heap_is_empty(const struct b6_heap *self)
+static inline unsigned long int b6_heap_length(const struct b6_heap *self)
 {
-	return !b6_array_length(&self->array);
+	return b6_array_length(self->array);
+}
+
+/**
+ * @brief Return if a heap contains any items.
+ * @complexity O(1)
+ * @param self specifies the heap.
+ * @return true if the heap is empty.
+ */
+static inline int b6_heap_empty(const struct b6_heap *self)
+{
+	return !b6_heap_length(self);
 }
 
 /**
@@ -102,8 +108,8 @@ static inline int b6_heap_is_empty(const struct b6_heap *self)
  */
 static inline void *b6_heap_top(const struct b6_heap *self)
 {
-	void **ptr = b6_array_get(&self->array, 0);
-	b6_assert(!b6_heap_is_empty(self));
+	void **ptr = b6_array_get(self->array, 0);
+	b6_assert(!b6_heap_empty(self));
 	return *ptr;
 }
 
@@ -115,9 +121,9 @@ static inline void *b6_heap_top(const struct b6_heap *self)
  */
 static inline void b6_heap_pop(struct b6_heap *self)
 {
-	b6_assert(!b6_heap_is_empty(self));
+	b6_assert(!b6_heap_empty(self));
 	b6_heap_do_pop(self);
-	b6_array_reduce(&self->array, 1);
+	b6_array_reduce(self->array, 1);
 }
 
 /**
@@ -130,14 +136,14 @@ static inline void b6_heap_pop(struct b6_heap *self)
  */
 static inline int b6_heap_push(struct b6_heap *self, void *item)
 {
-	unsigned long int len = b6_array_length(&self->array);
-	void **ptr = b6_array_extend(&self->array, 1);
+	unsigned long int len = b6_array_length(self->array);
+	void **ptr = b6_array_extend(self->array, 1);
 	if (!ptr)
 		return -1;
 	*ptr = item;
 	if (self->set_index)
 		self->set_index(item, len);
-	b6_heap_do_push(self, b6_array_get(&self->array, 0), len);
+	b6_heap_do_push(self, b6_array_get(self->array, 0), len);
 	return 0;
 }
 
@@ -156,8 +162,8 @@ static inline int b6_heap_push(struct b6_heap *self, void *item)
  */
 static inline void b6_heap_touch(struct b6_heap *self, unsigned long int index)
 {
-	void **buf = b6_array_get(&self->array, 0);
-	b6_assert(index < b6_array_length(&self->array));
+	void **buf = b6_array_get(self->array, 0);
+	b6_assert(index < b6_array_length(self->array));
 	b6_heap_do_push(self, buf, index);
 }
 
@@ -177,9 +183,9 @@ static inline void b6_heap_touch(struct b6_heap *self, unsigned long int index)
 static inline void b6_heap_extract(struct b6_heap *self,
 				   unsigned long int index)
 {
-	void **buf = b6_array_get(&self->array, 0);
-	b6_assert(index < b6_array_length(&self->array));
-	b6_heap_do_bring_on_top(self, buf, index);
+	void **buf = b6_array_get(self->array, 0);
+	b6_assert(index < b6_array_length(self->array));
+	b6_heap_do_boost(self, buf, index);
 	b6_heap_pop(self);
 }
 

@@ -35,8 +35,7 @@ void b6_heap_do_push(struct b6_heap *self, void **buf, unsigned long int i)
 			b6_heap_xchg(self, buf, i, j);
 }
 
-void b6_heap_do_bring_on_top(struct b6_heap *self, void **buf,
-			     unsigned long int i)
+void b6_heap_do_boost(struct b6_heap *self, void **buf, unsigned long int i)
 {
 	if (self->set_index)
 		while (i) {
@@ -71,8 +70,8 @@ bail_out:
 
 void b6_heap_do_pop(struct b6_heap *self)
 {
-	unsigned long int len = b6_array_length(&self->array) - 1;
-	void **buf = b6_array_get(&self->array, 0);
+	unsigned long int len = b6_array_length(self->array) - 1;
+	void **buf = b6_array_get(self->array, 0);
 	unsigned long int i, j;
 	if (self->set_index) {
 		b6_heap_xchg_cb(self, buf, 0, len);
@@ -83,4 +82,23 @@ void b6_heap_do_pop(struct b6_heap *self)
 		for (i = 0; i != (j = b6_heap_dive(self, buf, len, i)); i = j)
 			b6_heap_xchg(self, buf, i, j);
 	}
+}
+
+void b6_heap_do_make(struct b6_heap *self)
+{
+	unsigned long int len = b6_array_length(self->array);
+	void **buf = b6_array_get(self->array, 0);
+	unsigned long int i, j, k = len / 2;
+	if (self->set_index)
+		do
+			for (i = k; i != (j = b6_heap_dive(self, buf, len, i));
+			     i = j)
+				b6_heap_xchg_cb(self, buf, i, j);
+		while (k--);
+	else
+		do
+			for (i = k; i != (j = b6_heap_dive(self, buf, len, i));
+			     i = j)
+				b6_heap_xchg(self, buf, i, j);
+		while (k--);
 }
